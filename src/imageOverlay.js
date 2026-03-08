@@ -6,13 +6,16 @@ import sample from './CDN/static_content/imgages/sample_headshot.jpg';
 import sampleAd from './CDN/static_content/imgages/sample_ad.jpg';
 import html2canvas from 'html2canvas';
 import packageInfo from '../package.json';
+import AutoCompleteTextBox from "./component/dropdown"
+import players from "./json/players.json"
+import calcFontSize from "./utils/calculateFontSize"
 
 const ImageOverlays = () => {
     const [overlayImage, setOverlayImage] = useState(null);
     const [scoreText, setScoreText] = useState("99"); // Default value for preview
     const [activityType, setActivityType] = useState("Runs");
     const [stats, setStats] = useState("99(40) | 4x10 | 6X5 | SR: 247.5");
-    const [name, setName] = useState("Joe Root");
+    const [name, setName] = useState("");
     const [team1, setTeam1] = useState("Ratby Town CC 2nd XI");
     const [team2, setTeam2] = useState("ABC CC 1st XI");
     const [overlayImageAd, setOverlayImageAd] = useState(null);
@@ -53,7 +56,7 @@ const ImageOverlays = () => {
             document.body.removeChild(link);
         }
     };
-
+    const dynamicNameSize = calcFontSize(name);
     return (
         <Stack direction={{ xs: 'column', md: 'row' }}
             spacing={2}
@@ -89,16 +92,13 @@ const ImageOverlays = () => {
                     label="Stats"
                     variant="outlined"
                     onChange={(e) => setStats(e.target.value)}
-                    style={{ paddingTop: "0.25rem" }}
+                    style={{ paddingTop: "0.5rem"  }}
                 />
-                <TextField
-                    fullWidth
-                    label="Player Name"
-                    variant="outlined"
-                    onChange={(e) => setName(e.target.value)}
-                    style={{ paddingTop: "0.25rem" }}
-                />
-                <Stack direction="row" spacing={2} style={{ paddingTop: "0.25rem" }}>
+                <div style={{ paddingTop: "0.5rem" }}>
+                    <AutoCompleteTextBox   label="Player"  options={players} value={name} onChange={(val) => setName(val)} />
+                </div>
+
+                <Stack direction="row" spacing={2} style={{ paddingTop: "0.5rem"  }}>
                     <TextField
                         fullWidth
                         label="Team 1"
@@ -233,7 +233,7 @@ const ImageOverlays = () => {
                         {stats}
                     </div>
                     <div style={{
-                        fontSize: '2.5rem',
+                       fontSize: dynamicNameSize,
                         textTransform: 'uppercase',
                         marginLeft: '10px',
                         fontFamily: 'Archivo Black, sans-serif',
@@ -241,7 +241,7 @@ const ImageOverlays = () => {
                         paddingTop: '0.5rem',
                         textAlign: 'left'
                     }}>
-                        {name}
+                        {name || "Player Name"}
                     </div>
                 </Box>
 
@@ -256,7 +256,7 @@ const ImageOverlays = () => {
                     justifyContent: 'flex-end',
                     zIndex: 3,
                     paddingLeft: '0.25rem',
-                    fontSize: '1.25rem',
+                    fontSize: '1.15em',
                     textTransform: 'uppercase',
                     marginLeft: '10px',
                     fontFamily: 'Archivo Black, sans-serif',
