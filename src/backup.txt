@@ -1,0 +1,247 @@
+import React, { useState } from 'react';
+import { Button, Box, TextField, Stack } from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import template from './CDN/static_content/imgages/template.png';
+import sample from './CDN/static_content/imgages/sample_headshot.jpg';
+
+const ImageOverlays = () => {
+    const [overlayImage, setOverlayImage] = useState(null);
+    const [scoreText, setScoreText] = useState("99"); // Default value for preview
+    const [activityType, setActivityType] = useState("Runs");
+    const [stats, setStats] = useState("99(40) | 4x10 | 6X5 | SR: 247.5");
+    const [name, setName] = useState("Aravinda De Silva");
+    const [team1, setTeam1] = useState("Ratby Town CC 2nd XI");
+    const [team2, setTeam2] = useState("ABC CC 1st XI");
+    const [overlayImageAd, setOverlayImageAd] = useState(null);
+
+
+    const handleFileChange = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setOverlayImage(URL.createObjectURL(file));
+        }
+    };
+
+    const handleFileChangeAd = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setOverlayImageAd(URL.createObjectURL(file));
+        }
+    };
+
+    return (
+        <Stack direction="row" spacing={2} sx={{ p: 2 }}>
+            <Box sx={{ width: '600px', p: 2, border: '1px solid #ccc', borderRadius: 2 }} spacing={2}>
+                <Button
+                    component="label"
+                    variant="contained"
+                    fullWidth
+                    startIcon={<CloudUploadIcon />}
+                    sx={{ mb: 2 }}
+                >
+                    Upload Player Photo
+                    <input type="file" hidden accept="image/*" onChange={handleFileChange} />
+                </Button>
+
+                <Stack direction="row" spacing={2}>
+                    <TextField
+                        fullWidth
+                        label="Performance (Score)"
+                        variant="outlined"
+                        onChange={(e) => setScoreText(e.target.value)}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Type (Runs/Wickets)"
+                        variant="outlined"
+                        onChange={(e) => setActivityType(e.target.value)}
+                    />
+                </Stack>
+                <TextField
+                    fullWidth
+                    label="Stats"
+                    variant="outlined"
+                    onChange={(e) => setStats(e.target.value)}
+                    style={{ paddingTop: "0.25rem" }}
+                />
+                <TextField
+                    fullWidth
+                    label="Player Name"
+                    variant="outlined"
+                    onChange={(e) => setName(e.target.value)}
+                    style={{ paddingTop: "0.25rem" }}
+                />
+                <Stack direction="row" spacing={2} style={{ paddingTop: "0.25rem" }}>
+                    <TextField
+                        fullWidth
+                        label="Team 1"
+                        variant="outlined"
+                        onChange={(e) => setTeam1(e.target.value)}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Team 2"
+                        variant="outlined"
+                        onChange={(e) => setTeam2(e.target.value)}
+                    />
+                </Stack>
+                <Button
+                    style={{ margin: "0.25rem" }}
+                    component="label"
+                    variant="contained"
+                    fullWidth
+                    startIcon={<CloudUploadIcon />}
+                    sx={{ mb: 2 }}
+                >
+                    Upload Ad Banner
+                    <input type="file" hidden accept="image/*" onChange={handleFileChangeAd} />
+                </Button>
+            </Box>
+
+            <Box
+                id="graphic-container"
+                sx={{
+                    position: 'relative',
+                    width: '720px',  // FIXED WIDTH
+                    height: '600px', // FIXED HEIGHT
+                    overflow: 'hidden',
+                    backgroundColor: '#000',
+                    boxShadow: 10
+                }}
+            >
+                <img
+                    src={template}
+                    alt="Base"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', zIndex: 1 }}
+                />
+
+                <Box
+                    component="img"
+                    src={overlayImage || sample}
+                    sx={{
+                        position: 'absolute',
+                        top: '100px',    // Fixed Pixel value
+                        left: '20px',    // Fixed Pixel value
+                        width: '250px',
+                        height: '320px',
+                        objectFit: 'cover',
+                        zIndex: 2,
+                    }}
+                />
+                <Box sx={{
+                    position: 'absolute',
+                    top: '100px',
+                    left: '290px',
+                    color: 'white',
+                    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    zIndex: 3
+                }}>
+                    <div style={{
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: '7rem',
+                        fontWeight: 'bold',
+                        lineHeight: 1,
+                        marginLeft: '10px',
+                    }}>
+                        {scoreText}
+                    </div>
+                    <div style={{
+                        fontSize: '4rem',
+                        textTransform: 'uppercase',
+                        marginLeft: '10px',
+                        fontFamily: 'Archivo Black, sans-serif',
+                        fontWeight: '600',
+                        paddingTop: '1.25rem',
+                        paddingLeft: '0.25rem'
+                    }}>
+                        {activityType}
+                    </div>
+                </Box>
+                <Box sx={{
+                    position: 'absolute',
+                    top: '190px',
+                    left: '290px',
+                    color: 'white',
+                    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
+                    display: 'block',
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-start',
+                    zIndex: 3,
+                    paddingLeft: '0.25rem',
+
+                }}>
+                    <div style={{
+                        fontSize: '1.25rem',
+                        textTransform: 'uppercase',
+                        marginLeft: '10px',
+                        fontFamily: 'Archivo Black, sans-serif',
+                        fontWeight: '500',
+                        paddingTop: '1.25rem',
+                        paddingLeft: '0.25rem',
+                        textAlign: 'left'
+                    }}>
+                        {stats}
+                    </div>
+                    <div style={{
+                        fontSize: '2rem',
+                        textTransform: 'uppercase',
+                        marginLeft: '10px',
+                        fontFamily: 'Archivo Black, sans-serif',
+                        fontWeight: '400',
+                        paddingTop: '1rem',
+                        textAlign: 'left'
+                    }}>
+                        {name}
+                    </div>
+                </Box>
+
+                <Box sx={{
+                    position: 'absolute',
+                    top: '320px',
+                    left: '410px',
+                    color: 'white',
+                    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
+                    display: 'block',
+                    alignItems: 'flex-end',
+                    justifyContent: 'flex-end',
+                    zIndex: 3,
+                    paddingLeft: '0.25rem',
+                    fontSize: '1.25rem',
+                    textTransform: 'uppercase',
+                    marginLeft: '10px',
+                    fontFamily: 'Archivo Black, sans-serif',
+                    fontWeight: '500',
+                    paddingTop: '1.25rem',
+                    textAlign: 'right'
+
+                }}>
+                    <div>
+                        {team1}
+                    </div>
+                    <div style={{ fontFamily: 'Archivo, sans-serif' }}>vs</div>
+                    <div>
+                        {team2}
+                    </div>
+                </Box>
+                <Box
+                    component="img"
+                    src={overlayImageAd || sample}
+                    sx={{
+                        position: 'absolute',
+                        top: '430px',    // Fixed Pixel value
+                        left: '20px',    // Fixed Pixel value
+                        width: '675px',
+                        height: '100px',
+                        objectFit: 'cover',
+                        zIndex: 2,
+                    }}
+                />
+            </Box>
+
+        </Stack>
+    );
+}
+
+export default ImageOverlays;
