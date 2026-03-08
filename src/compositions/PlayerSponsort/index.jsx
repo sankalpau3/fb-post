@@ -12,7 +12,7 @@ import calcFontSize from "../../utils/calculateFontSize"
 
 const PlayerSoponser = () => {
     const [overlayImage, setOverlayImage] = useState(null);
-    const [scoreText, setScoreText] = useState("99"); // Default value for preview
+    const [scoreText, setScoreText] = useState("99");
     const [activityType, setActivityType] = useState("Runs");
     const [stats, setStats] = useState("99(40) | 4x10 | 6X5 | SR: 247.5");
     const [name, setName] = useState("");
@@ -23,45 +23,51 @@ const PlayerSoponser = () => {
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
-        if (file) {
-            setOverlayImage(URL.createObjectURL(file));
-        }
+        if (file) setOverlayImage(URL.createObjectURL(file));
     };
 
     const handleFileChangeAd = (event) => {
         const file = event.target.files[0];
-        if (file) {
-            setOverlayImageAd(URL.createObjectURL(file));
-        }
+        if (file) setOverlayImageAd(URL.createObjectURL(file));
     };
 
-    const downloadFrameAsJpg = async (event) => {
-        // I want to download the content of the #graphic-container as a JPG image when this function is called
-
+    const downloadFrameAsJpg = async () => {
         if (graphicRef.current) {
-            // 4. Capture the element
             const canvas = await html2canvas(graphicRef.current, {
-                useCORS: true,      // Essential for loading external images
+                useCORS: true,
                 allowTaint: false,
-                scale: 2,           // Higher quality/resolution
+                scale: 2, 
             });
-
-            // 5. Convert to JPG and download
             const image = canvas.toDataURL("image/jpeg", 0.9);
             const link = document.createElement('a');
             link.href = image;
-            link.download = `${name.replace(/\s+/g, '_')}_stats.jpg`;
-            document.body.appendChild(link);
+            link.download = `${name.replace(/\s+/g, '_') || 'player'}_stats.jpg`;
             link.click();
-            document.body.removeChild(link);
         }
     };
+
     const dynamicNameSize = calcFontSize(name);
+
     return (
-        <Stack direction={{ xs: 'column', md: 'row' }}
+        <Stack 
+            direction={{ xs: 'column', md: 'row' }}
             spacing={2}
-            sx={{ p: { xs: 1, md: 2 }, alignItems: { xs: 'center', md: 'flex-start' } }}>
-            <Box sx={{ width: '600px', p: 2, border: '1px solid #ccc', borderRadius: 2 }} spacing={2} id="controls">
+            sx={{ 
+                p: { xs: 1, md: 2 }, 
+                alignItems: { xs: 'center', md: 'flex-start' },
+                width: '100%',
+                maxWidth: '100vw',
+                overflowX: 'hidden' // Prevents the whole page from wobbling
+            }}
+        >
+            {/* 1. CONTROLS - Width adjusts to screen on mobile */}
+            <Box sx={{ 
+                width: { xs: '100%', sm: '100%', md: '500px' }, 
+                p: 2, 
+                border: '1px solid #ccc', 
+                borderRadius: 2,
+                boxSizing: 'border-box'
+            }} id="controls">
                 <Button
                     component="label"
                     variant="contained"
@@ -73,47 +79,30 @@ const PlayerSoponser = () => {
                     <input type="file" hidden accept="image/*" onChange={handleFileChange} />
                 </Button>
 
-                <Stack direction="row" spacing={2}>
-                    <TextField
-                        fullWidth
-                        label="Performance (Score)"
-                        variant="outlined"
-                        onChange={(e) => setScoreText(e.target.value)}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Type (Runs/Wickets)"
-                        variant="outlined"
-                        onChange={(e) => setActivityType(e.target.value)}
-                    />
+                <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
+                    <TextField fullWidth label="Score" variant="outlined" value={scoreText} onChange={(e) => setScoreText(e.target.value)} />
+                    <TextField fullWidth label="Type" variant="outlined" value={activityType} onChange={(e) => setActivityType(e.target.value)} />
                 </Stack>
+                
                 <TextField
                     fullWidth
                     label="Stats"
                     variant="outlined"
+                    value={stats}
                     onChange={(e) => setStats(e.target.value)}
-                    style={{ paddingTop: "0.5rem"  }}
+                    sx={{ mb: 1 }}
                 />
-                <div style={{ paddingTop: "0.5rem" }}>
-                    <AutoCompleteTextBox   label="Player"  options={players} value={name} onChange={(val) => setName(val)} />
-                </div>
 
-                <Stack direction="row" spacing={2} style={{ paddingTop: "0.5rem"  }}>
-                    <TextField
-                        fullWidth
-                        label="Team 1"
-                        variant="outlined"
-                        onChange={(e) => setTeam1(e.target.value)}
-                    />
-                    <TextField
-                        fullWidth
-                        label="Team 2"
-                        variant="outlined"
-                        onChange={(e) => setTeam2(e.target.value)}
-                    />
+                <Box sx={{ mb: 1 }}>
+                    <AutoCompleteTextBox label="Player" options={players} value={name} onChange={(val) => setName(val)} />
+                </Box>
+
+                <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
+                    <TextField fullWidth label="Team 1" variant="outlined" value={team1} onChange={(e) => setTeam1(e.target.value)} />
+                    <TextField fullWidth label="Team 2" variant="outlined" value={team2} onChange={(e) => setTeam2(e.target.value)} />
                 </Stack>
+
                 <Button
-                    style={{ margin: "0.25rem" }}
                     component="label"
                     variant="contained"
                     fullWidth
@@ -128,169 +117,62 @@ const PlayerSoponser = () => {
                     variant="contained"
                     fullWidth
                     onClick={downloadFrameAsJpg}
-                    sx={{
-                        m: "0.25rem",
-                        backgroundColor: '#2e7d32', // Optional: Green for "Success/Download"
-                        '&:hover': { backgroundColor: '#1b5e20' }
-                    }}
+                    sx={{ backgroundColor: '#2e7d32', '&:hover': { backgroundColor: '#1b5e20' } }}
                 >
                     Download Graphic
                 </Button>
-                <Box sx={{ mt: 2, textAlign: 'center', opacity: 0.5 }}>
-                    <Typography variant="caption">
-                        v{packageInfo.version}
-                    </Typography>
-                </Box>
             </Box>
 
-            <Box
-                id="graphic-container"
-                ref={graphicRef}
-                sx={{
-                    position: 'relative',
-                    width: '720px',  // FIXED WIDTH
-                    height: '600px', // FIXED HEIGHT
-                    overflow: 'hidden',
-                    backgroundColor: '#000',
-                    boxShadow: 10
-                }}
-            >
-                <img
-                    src={template}
-                    alt="Base"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain', zIndex: 1 }}
-                />
-
+            {/* 2. PREVIEW WRAPPER - Horizontal Scroll for Mobile */}
+            <Box sx={{ 
+                width: { xs: '100%', md: 'auto' }, 
+                overflowX: 'auto', // This allows the full 720px image to be "swiped" on small screens
+                p: { xs: 1, md: 0 },
+                backgroundColor: '#f5f5f5',
+                borderRadius: 2,
+                display: 'block'
+            }}>
                 <Box
+                    id="graphic-container"
+                    ref={graphicRef}
                     sx={{
-                        position: 'absolute',
-                        top: '100px',
-                        left: '20px',
-                        width: '210px',
-                        height: '280px',
-                        zIndex: 2,
-                        backgroundImage: `url(${overlayImage || sample})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat',
-                        border: '1px solid rgba(255,255,255,0.2)' // Optional clean edge
+                        position: 'relative',
+                        width: '720px',  // STRICT FIXED SIZE
+                        height: '600px', // STRICT FIXED SIZE
+                        backgroundColor: '#000',
+                        boxShadow: 10,
+                        flexShrink: 0,   // Prevents layout from squeezing the graphic
                     }}
-                />
-                <Box sx={{
-                    position: 'absolute',
-                    top: '85px',
-                    left: '250px',
-                    color: 'white',
-                    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    zIndex: 3
-                }}>
-                    <div style={{
-                        fontFamily: 'Kanit, sans-serif',
-                        fontSize: '7rem',
-                        fontWeight: 'bold',
-                        lineHeight: 1,
-                        marginLeft: '10px',
-                    }}>
-                        {scoreText}
-                    </div>
-                    <div style={{
-                        fontSize: '3.5rem',
-                        textTransform: 'uppercase',
-                        marginLeft: '10px',
-                        fontFamily: 'Archivo Black, sans-serif',
-                        fontWeight: '600',
-                        paddingTop: '1.25rem',
-                        paddingLeft: '0.25rem'
-                    }}>
-                        {activityType}
-                    </div>
-                </Box>
-                <Box sx={{
-                    position: 'absolute',
-                    top: '175px',
-                    left: '250px',
-                    color: 'white',
-                    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
-                    display: 'block',
-                    alignItems: 'flex-start',
-                    justifyContent: 'flex-start',
-                    zIndex: 3,
-                    paddingLeft: '0.25rem',
+                >
+                    <img src={template} alt="Base" style={{ width: '100%', height: '100%', objectFit: 'contain', zIndex: 1 }} />
 
-                }}>
-                    <div style={{
-                        fontSize: '1.25rem',
-                        textTransform: 'uppercase',
-                        marginLeft: '10px',
-                        fontFamily: 'Archivo Black, sans-serif',
-                        fontWeight: '500',
-                        paddingTop: '1.25rem',
-                        paddingLeft: '0.25rem',
-                        textAlign: 'left'
-                    }}>
-                        {stats}
-                    </div>
-                    <div style={{
-                       fontSize: dynamicNameSize,
-                        textTransform: 'uppercase',
-                        marginLeft: '10px',
-                        fontFamily: 'Archivo Black, sans-serif',
-                        fontWeight: '400',
-                        paddingTop: '0.5rem',
-                        textAlign: 'left'
-                    }}>
-                        {name || "Player Name"}
-                    </div>
-                </Box>
+                    <Box sx={{
+                        position: 'absolute', top: '100px', left: '20px', width: '210px', height: '280px', zIndex: 2,
+                        backgroundImage: `url(${overlayImage || sample})`, backgroundSize: 'cover', backgroundPosition: 'center'
+                    }} />
 
-                <Box sx={{
-                    position: 'absolute',
-                    top: '280px',
-                    left: '180px',
-                    color: 'white',
-                    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.8)',
-                    display: 'block',
-                    alignItems: 'flex-end',
-                    justifyContent: 'flex-end',
-                    zIndex: 3,
-                    paddingLeft: '0.25rem',
-                    fontSize: '1.15em',
-                    textTransform: 'uppercase',
-                    marginLeft: '10px',
-                    fontFamily: 'Archivo Black, sans-serif',
-                    fontWeight: '500',
-                    paddingTop: '1.25rem',
-                    textAlign: 'right',
-                    width: '500px'
+                    <Box sx={{ position: 'absolute', top: '85px', left: '250px', color: 'white', textShadow: '3px 3px 6px rgba(0,0,0,0.8)', display: 'flex', zIndex: 3 }}>
+                        <div style={{ fontFamily: 'Kanit, sans-serif', fontSize: '7rem', fontWeight: 'bold', lineHeight: 1, marginLeft: '10px' }}>{scoreText}</div>
+                        <div style={{ fontSize: '3.5rem', textTransform: 'uppercase', marginLeft: '10px', fontFamily: 'Archivo Black, sans-serif', fontWeight: '600', paddingTop: '1.25rem' }}>{activityType}</div>
+                    </Box>
 
-                }}>
-                    <div style={{ width: '100%', textAlign: 'right' }}>
-                        {team1}
-                    </div>
-                    <div style={{ fontFamily: 'Archivo, sans-serif' }}>vs</div>
-                    <div style={{ width: '100%', textAlign: 'right' }}>
-                        {team2}
-                    </div>
+                    <Box sx={{ position: 'absolute', top: '175px', left: '250px', color: 'white', textShadow: '3px 3px 6px rgba(0,0,0,0.8)', zIndex: 3 }}>
+                        <div style={{ fontSize: '1.25rem', textTransform: 'uppercase', marginLeft: '10px', fontFamily: 'Archivo Black, sans-serif', fontWeight: '500', paddingTop: '1.25rem' }}>{stats}</div>
+                        <div style={{ fontSize: dynamicNameSize, textTransform: 'uppercase', marginLeft: '10px', fontFamily: 'Archivo Black, sans-serif', fontWeight: '400', paddingTop: '0.5rem' }}>{name || "Player Name"}</div>
+                    </Box>
+
+                    <Box sx={{ position: 'absolute', top: '280px', left: '180px', color: 'white', textShadow: '3px 3px 6px rgba(0,0,0,0.8)', zIndex: 3, width: '500px', textAlign: 'right', fontFamily: 'Archivo Black, sans-serif' }}>
+                        <div style={{ fontSize: '1.15em', textTransform: 'uppercase' }}>{team1}</div>
+                        <div style={{ fontSize: '0.8em' }}>vs</div>
+                        <div style={{ fontSize: '1.15em', textTransform: 'uppercase' }}>{team2}</div>
+                    </Box>
+
+                    <Box sx={{
+                        position: 'absolute', top: '400px', left: '20px', width: '675px', height: '140px', zIndex: 2,
+                        backgroundImage: `url(${overlayImageAd || sampleAd})`, backgroundSize: 'cover', backgroundPosition: 'center'
+                    }} />
                 </Box>
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        top: '400px',
-                        left: '20px',
-                        width: '675px',
-                        height: '140px',
-                        zIndex: 2,
-                        // The Fix: Use backgroundImage
-                        backgroundImage: `url(${overlayImageAd || sampleAd})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat'
-                    }}
-                />
             </Box>
-
         </Stack>
     );
 }
