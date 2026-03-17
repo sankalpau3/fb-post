@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import "./App.css";
 import PlayerSoponser from "./compositions/PlayerSponsort";
 import TeamCards from "./compositions/TeamCards";
+import PsAd from "./compositions/PsAd";
 import { Button, Box, TextField, Stack, Typography } from "@mui/material";
 import packageInfo from "../package.json";
 
 function App() {
-  const [activeView, setActiveView] = useState("player");
+  const [activeView, setActiveView] = useState("psad");
 
   const renderView = () => {
     switch (activeView) {
@@ -14,6 +15,8 @@ function App() {
         return <PlayerSoponser />;
       case "team":
         return <TeamCards />;
+      case "psad":
+        return <PsAd />;
       default:
         return <PlayerSoponser />;
     }
@@ -71,6 +74,23 @@ function App() {
         >
           Team Cards
         </button>
+
+        <button
+          onClick={() => setActiveView("psad")}
+          style={{
+            fontWeight: activeView === "psad" ? "bold" : "normal",
+            backgroundColor: activeView === "psad" ? "#1976d2" : "#fff",
+            color: activeView === "psad" ? "#fff" : "#000",
+            padding: "10px 20px",
+            border: "1px solid #1976d2",
+            borderRadius: "4px",
+            cursor: "pointer",
+            transition: "0.3s",
+          }}
+        >
+          PS Ad.
+        </button>
+
         <Box sx={{ mt: 2, textAlign: "center", opacity: 0.5 }}>
           <Typography variant="caption">v{packageInfo.version}</Typography>
         </Box>
