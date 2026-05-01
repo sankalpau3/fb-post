@@ -3,6 +3,7 @@ import "./App.css";
 import PlayerSoponser from "./compositions/PlayerSponsort";
 import TeamCards from "./compositions/TeamCards";
 import PsAd from "./compositions/PsAd";
+import UpdatePlayer from "./compositions/UpdatePlayer";
 import { Button, Box, TextField, Stack, Typography } from "@mui/material";
 import packageInfo from "../package.json";
 
@@ -17,6 +18,8 @@ function App() {
         return <TeamCards />;
       case "psad":
         return <PsAd />;
+      case "updatePlayer":
+        return <UpdatePlayer />;
       default:
         return <PlayerSoponser />;
     }
@@ -89,6 +92,22 @@ function App() {
           }}
         >
           PS Ad.
+        </button>
+
+        <button
+          onClick={() => setActiveView("updatePlayer")}
+          style={{
+            fontWeight: activeView === "updatePlayer" ? "bold" : "normal",
+            backgroundColor: activeView === "updatePlayer" ? "#1976d2" : "#fff",
+            color: activeView === "updatePlayer" ? "#fff" : "#000",
+            padding: "10px 20px",
+            border: "1px solid #1976d2",
+            borderRadius: "4px",
+            cursor: "pointer",
+            transition: "0.3s",
+          }}
+        >
+          Update Players
         </button>
 
         <Box sx={{ mt: 2, textAlign: "center", opacity: 0.5 }}>

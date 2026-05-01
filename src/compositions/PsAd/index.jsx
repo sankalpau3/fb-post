@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button, Box, TextField, Stack, Typography } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/teamplate_player_sponsor.png';
@@ -7,14 +7,25 @@ import sampleAd from '../../CDN/static_content/imgages/sample_ad.jpg';
 import html2canvas from 'html2canvas';
 import packageInfo from '../../../package.json';
 import AutoCompleteTextBox from "../../component/dropdown"
-import players from "../../json/players.json"
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase';
 import calcFontSize from "../../utils/calculateFontSize"
 
 const PlayerSoponser = () => {
     const [overlayImage, setOverlayImage] = useState(null);
     const [name, setName] = useState("");
     const [overlayImageAd, setOverlayImageAd] = useState(null);
+    const [players, setPlayers] = useState([]);
     const graphicRef = useRef(null);
+
+    useEffect(() => {
+        const fetchPlayers = async () => {
+            const querySnapshot = await getDocs(collection(db, 'players'));
+            const data = querySnapshot.docs.map(doc => doc.data());
+            setPlayers(data);
+        };
+        fetchPlayers();
+    }, []);
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
