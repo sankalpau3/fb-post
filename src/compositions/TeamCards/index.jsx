@@ -1,24 +1,45 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button, Box, TextField, Stack, Typography, MenuItem, Radio } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
 import html2canvas from 'html2canvas';
 import AutoCompleteTextBox from "../../component/dropdown"
-import players from "../../json/players.json"
-import teams from "../../json/teams.json"
-import oponentTeams from "../../json/oponents.json"
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 const PlayerSoponser = () => {
     const [overlayImage, setOverlayImage] = useState(null);
-    const [team, setTeam] = useState(teams[0].value);
-    const [oponent, setoPonents] = useState(oponentTeams[0].value);
+    const [team, setTeam] = useState("");
+    const [oponent, setoPonents] = useState("");
     const [playerNames, setPlayerNames] = useState(Array(11).fill(""));
+    const [players, setPlayers] = useState([]);
+    const [teams, setTeams] = useState([]);
+    const [oponentTeams, setOponentTeams] = useState([]);
 
     // States for Captain and Wicket Keeper
     const [captainIndex, setCaptainIndex] = useState(null);
     const [wkIndex, setWkIndex] = useState(null);
 
     const graphicRef = useRef(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const playersSnapshot = await getDocs(collection(db, 'players'));
+            const playersData = playersSnapshot.docs.map(doc => doc.data());
+            setPlayers(playersData);
+
+            const teamsSnapshot = await getDocs(collection(db, 'teams'));
+            const teamsData = teamsSnapshot.docs.map(doc => doc.data());
+            setTeams(teamsData);
+            if (teamsData.length > 0) setTeam(teamsData[0].value);
+
+            const opponentsSnapshot = await getDocs(collection(db, 'opponents'));
+            const opponentsData = opponentsSnapshot.docs.map(doc => doc.data());
+            setOponentTeams(opponentsData);
+            if (opponentsData.length > 0) setoPonents(opponentsData[0].value);
+        };
+        fetchData();
+    }, []);
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
@@ -62,11 +83,12 @@ const PlayerSoponser = () => {
                     ))}
                 </TextField>
 
-                <TextField fullWidth select label="Opponent" value={oponent} onChange={(e) => setoPonents(e.target.value)} sx={{ mb: 2 }}>
-                    {oponentTeams.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                    ))}
-                </TextField>
+                <AutoCompleteTextBox
+                    label="Opponent"
+                    options={oponentTeams}
+                    value={oponent}
+                    onChange={(val) => setoPonents(val)}
+                />
 
                 <Button component="label" variant="outlined" fullWidth startIcon={<CloudUploadIcon />} sx={{ mb: 3 }}>
                     Upload Action Photo
@@ -118,8 +140,14 @@ const PlayerSoponser = () => {
                     <img src={template} alt="Base" style={{ width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
 
                     <Box sx={{
-                        position: 'absolute', top: '140px', right: '40px', width: '280px', height: '380px', zIndex: 2,
+                        position: 'absolute', top: '140px', right: '40px', width: '360px', height: '380px', zIndex: 2,
+                        backgroundColor: 'rgb(62, 89, 63)',
+                    }} />
+
+                    <Box sx={{
+                        position: 'absolute', top: '140px', right: '40px', width: '360px', height: '380px', zIndex: 3,
                         backgroundImage: `url(${overlayImage})`, backgroundSize: 'cover', backgroundPosition: 'center',
+                        borderRadius: '28px',
                     }} />
 
                     {/* Header Section */}
@@ -127,7 +155,7 @@ const PlayerSoponser = () => {
                         position: 'absolute',
                         top: '70px',
                         left: '15px',
-                        zIndex: 3,
+                        zIndex: 4,
                         display: 'flex',      // Align children horizontally
                         alignItems: 'baseline', // Align text by the bottom of the letters
                         gap: 2                // Space between Team and Opponent
@@ -155,27 +183,49 @@ const PlayerSoponser = () => {
                     </Box>
 
                     {/* Single Column Player List */}
-                    <Box sx={{ position: 'absolute', top: '165px', left: '40px', zIndex: 3 }}>
+                    <Box sx={{ position: 'absolute', top: '150px', left: '40px', zIndex: 4, width: '280px' }}>
                         {playerNames.map((name, index) => {
                             let displayName = name || `Player ${index + 1}`;
 
+                            // Find sponsor
+                            const player = players.find(p => p.label === name);
+                            const sponsor = player?.sponsor;
+
                             // Append tags
                             if (index === captainIndex) displayName += ' (C)';
-                            if (index === wkIndex) displayName = displayName += ' (WK)';
+                            if (index === wkIndex) displayName += ' (WK)';
 
                             return (
-                                <Typography key={index} sx={{
-                                    fontSize: "1.05rem", // Slightly larger for single column
-                                    textTransform: 'uppercase',
-                                    fontFamily: 'Archivo Black, sans-serif',
-                                    color: 'white',
-                                    mb: '8px', // Reduced spacing to fit all 11
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    textShadow: '1px 1px 3px rgba(0,0,0,0.8)'
-                                }}>
-                                    {displayName}
-                                </Typography>
+                                <Box key={index} sx={{ mb: '10px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                   
+                                    <Typography sx={{
+                                        fontSize: "1rem",
+                                        lineHeight: 1.2,
+                                        textTransform: 'uppercase',
+                                        fontFamily: 'Archivo Black, sans-serif',
+                                        color: 'white',
+                                        textShadow: '1px 1px 3px rgba(0,0,0,0.8)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}>
+                                        {displayName}
+                                    </Typography>
+                                     {sponsor && (
+                                        <Typography sx={{
+                                            fontSize: "0.7rem",
+                                            lineHeight: 1.2,
+                                            fontFamily: 'Archivo, sans-serif',
+                                            color: '#d4d4d4',
+                                            textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                                            mb: '2px',
+                                            textTransform: 'capitalize',
+                                            whiteSpace: 'nowrap',
+                                        }}>
+                                            sponsored by {sponsor}
+                                        </Typography>
+                                    )}
+                                </Box>
                             );
                         })}
                     </Box>
