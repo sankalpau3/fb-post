@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button, Box, TextField, Stack, Typography } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import template from '../../CDN/static_content/imgages/teamplate_player_sponsor.png';
+import template from '../../CDN/static_content/imgages/template.png';
 import sample from '../../CDN/static_content/imgages/sample_headshot.jpg';
 import sampleAd from '../../CDN/static_content/imgages/sample_ad.jpg';
 import html2canvas from 'html2canvas';
@@ -37,6 +37,11 @@ const PlayerSoponser = () => {
         if (file) setOverlayImageAd(URL.createObjectURL(file));
     };
 
+    const nameParts = name.trim().split(' ').filter(Boolean);
+    const displayName = nameParts.length > 1
+        ? `${nameParts.slice(0, -1).join(' ')}\n${nameParts.slice(-1)}`
+        : name || 'PLAYER NAME';
+
     const downloadFrameAsJpg = async () => {
         if (graphicRef.current) {
             const canvas = await html2canvas(graphicRef.current, {
@@ -69,7 +74,6 @@ const PlayerSoponser = () => {
                 width: { xs: '100%', sm: '100%', md: '500px' },
                 p: 2,
                 border: '1px solid #ccc',
-                borderRadius: 2,
                 boxSizing: 'border-box'
             }} id="controls">
                 <Button
@@ -110,38 +114,82 @@ const PlayerSoponser = () => {
             {/* 2. PREVIEW WRAPPER - Horizontal Scroll for Mobile */}
             <Box sx={{
                 width: { xs: '100%', md: 'auto' },
-                overflowX: 'auto', // This allows the full 720px image to be "swiped" on small screens
+                overflowX: 'auto',
                 p: { xs: 1, md: 0 },
                 backgroundColor: '#f5f5f5',
-                borderRadius: 2,
-                display: 'block'
+                display: 'flex',
+                justifyContent: 'center'
             }}>
                 <Box
                     id="graphic-container"
                     ref={graphicRef}
                     sx={{
                         position: 'relative',
-                        width: '720px',  // STRICT FIXED SIZE
-                        height: '600px', // STRICT FIXED SIZE
+                        width: '940px',
+                        height: '788px',
                         backgroundColor: '#000',
                         boxShadow: 10,
-                        flexShrink: 0,   // Prevents layout from squeezing the graphic
+                        flexShrink: 0
                     }}
                 >
-                    <img src={template} alt="Base" style={{ width: '100%', height: '100%', objectFit: 'contain', zIndex: 1 }} />
-                    <Box id="main-context" sx={{ position: "absolute", top: '140px', left: '79px', display: "flex", gap: "1rem" }}>
+                    <img src={template} alt="Base" style={{ width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
+                    <Box id="main-context" sx={{ position: 'absolute', top: '160px', left: '20px', display: 'flex', gap: '24px', zIndex: 2 }}>
                         <Box sx={{
-                            width: '270px', height: '360px', zIndex: 2,
-                            backgroundImage: `url(${overlayImage || sample})`, backgroundSize: 'cover', backgroundPosition: 'center'
+                            width: '380px',
+                            height: '530px',
+                            overflow: 'hidden',
+                            boxShadow: '0 18px 40px rgba(0,0,0,0.5)',
+                            backgroundImage: `url(${overlayImage || sample})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
                         }} />
 
                         <Box sx={{
-                            width: '270px', height: '360px', zIndex: 2,
-                            backgroundImage: `url(${overlayImageAd || sampleAd})`, backgroundSize: 'cover', backgroundPosition: 'center'
-                        }} />
-                    </Box>
-                    <Box sx={{ position: 'absolute', top: '505px', color: 'white', textShadow: '3px 3px 6px rgba(0,0,0,0.8)', zIndex: 3, width: "100%" }}>
-                        <div style={{ fontSize: '2rem', textTransform: 'uppercase', fontFamily: 'Archivo Black, sans-serif', fontWeight: '600' }}>{name || "Player Name"}</div>
+                            width: '460px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            color: 'white',
+                            pt: '16px'
+                        }}>
+                            <Box>
+                                <Typography sx={{
+                                    fontSize: { xs: '36px', md: '80px' },
+                                    fontWeight: 900,
+                                    lineHeight: 1,
+                                    letterSpacing: '-1px',
+                                    textTransform: 'uppercase',
+                                    textShadow: '4px 4px 12px rgba(0,0,0,0.8)',
+                                    whiteSpace: 'pre-line',
+                                    textAlign: 'left',
+                                    fontFamily: 'Archivo Black, sans-serif',
+                                }}>
+                                    {displayName}
+                                </Typography>
+                                <Typography sx={{
+                                    fontSize: { xs: '14px', md: '24px' },
+                                    fontWeight: 900,
+                                    mt: 2,
+                                    letterSpacing: '1px',
+                                    textShadow: '3px 3px 10px rgba(0,0,0,0.75)',
+                                    paddingTop: '100px',
+                                    textAlign: 'left',
+                                    fontFamily: 'Archivo Black, sans-serif',
+                                }}>
+                                    PLAYER SPONSOR FOR 2026
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{
+                                width: '420px',
+                                height: '180px',
+                                overflow: 'hidden',
+                                backgroundImage: `url(${overlayImageAd || sampleAd})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                boxShadow: '0 12px 30px rgba(0,0,0,0.45)'
+                            }} />
+                        </Box>
                     </Box>
                 </Box>
             </Box>
