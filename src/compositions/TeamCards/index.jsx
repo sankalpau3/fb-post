@@ -182,7 +182,7 @@ const PlayerSoponser = () => {
                     </Box>
 
                     {/* Single Column Player List */}
-                    <Box sx={{ position: 'absolute', top: '140px', left: '40px', zIndex: 4, width: '280px' }}>
+                    <Box sx={{ position: 'absolute', top: '140px', left: '40px', zIndex: 4, width: '280px', height: '420px', maxHeight: '410px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                         {playerNames.map((name, index) => {
                             let displayName = name || `Player ${index + 1}`;
 
@@ -195,7 +195,7 @@ const PlayerSoponser = () => {
                             if (index === wkIndex) displayName += ' (WK)';
 
                             return (
-                                <Box key={index} sx={{ mb: '10px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                <Box key={index} sx={{ mb: '10px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }} id="player-name-box">
                                    
                                     <Typography sx={{
                                         fontSize: "1rem",
