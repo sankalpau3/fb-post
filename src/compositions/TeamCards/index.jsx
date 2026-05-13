@@ -147,7 +147,6 @@ const PlayerSoponser = () => {
                     <Box sx={{
                         position: 'absolute', top: '140px', right: '40px', width: '360px', height: '380px', zIndex: 3,
                         backgroundImage: `url(${overlayImage})`, backgroundSize: 'cover', backgroundPosition: 'center',
-                        borderRadius: '28px',
                     }} />
 
                     {/* Header Section */}
@@ -183,7 +182,7 @@ const PlayerSoponser = () => {
                     </Box>
 
                     {/* Single Column Player List */}
-                    <Box sx={{ position: 'absolute', top: '150px', left: '40px', zIndex: 4, width: '280px' }}>
+                    <Box sx={{ position: 'absolute', top: '140px', left: '40px', zIndex: 4, width: '280px' }}>
                         {playerNames.map((name, index) => {
                             let displayName = name || `Player ${index + 1}`;
 
@@ -200,7 +199,7 @@ const PlayerSoponser = () => {
                                    
                                     <Typography sx={{
                                         fontSize: "1rem",
-                                        lineHeight: 1.2,
+                                        lineHeight: 1,
                                         textTransform: 'uppercase',
                                         fontFamily: 'Archivo Black, sans-serif',
                                         color: 'white',
@@ -214,7 +213,7 @@ const PlayerSoponser = () => {
                                      {sponsor && (
                                         <Typography sx={{
                                             fontSize: "0.7rem",
-                                            lineHeight: 1.2,
+                                            lineHeight: 1,
                                             fontFamily: 'Archivo, sans-serif',
                                             color: '#d4d4d4',
                                             textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
