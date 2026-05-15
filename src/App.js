@@ -181,40 +181,40 @@ function App() {
     >
       <AppBar position="sticky" color="default" elevation={1}>
         <Toolbar sx={{ justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {viewLabels[activeView] || "Fine Management App"}
             </Typography>
-          </Box>
-
-          {isMobile ? (
-            <IconButton
-              edge="end"
-              color="inherit"
-              aria-label="open navigation"
-              onClick={() => setDrawerOpen(true)}
-            >
-              <MenuIcon />
-            </IconButton>
-          ) : (
-            <Stack direction="row" spacing={1}>
-              {viewItems.map((item) => (
-                <Button
-                  key={item.key}
-                  variant={activeView === item.key ? "contained" : "outlined"}
-                  color={activeView === item.key ? "primary" : "inherit"}
-                  onClick={() => setActiveView(item.key)}
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </Stack>
-          )}
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="caption" sx={{ opacity: 0.7 }}>
               v{packageInfo.version}
             </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {isMobile ? (
+              <IconButton
+                edge="end"
+                color="inherit"
+                aria-label="open navigation"
+                onClick={() => setDrawerOpen(true)}
+              >
+                <MenuIcon />
+              </IconButton>
+            ) : (
+              <Stack direction="row" spacing={1}>
+                {viewItems.map((item) => (
+                  <Button
+                    key={item.key}
+                    variant={activeView === item.key ? "contained" : "outlined"}
+                    color={activeView === item.key ? "primary" : "inherit"}
+                    onClick={() => setActiveView(item.key)}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </Stack>
+            )}
+
             {isAdminLoggedIn && (
               <Button variant="outlined" color="secondary" onClick={handleLogout}>
                 Log out
