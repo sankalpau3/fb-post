@@ -5,6 +5,8 @@ import {
   AccordionSummary,
   Box,
   Button,
+  IconButton,
+  Menu,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,9 +18,12 @@ import {
   Typography,
   Alert,
   Paper,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import AutoCompleteTextBox from '../../component/dropdown';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+// import AutoCompleteTextBox from '../../component/dropdown';
 import {
   addDoc,
   collection,
@@ -27,6 +32,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  deleteDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -35,17 +41,25 @@ import { db } from '../../firebase';
 const Fines = ({ currentAdminUsername = 'admin' }) => {
   const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [opponents, setOpponents] = useState([]);
+  const [teamCards, setTeamCards] = useState([]);
+  const [filterPlayersByMatch, setFilterPlayersByMatch] = useState(true);
   const [fineTypes, setFineTypes] = useState([]);
   const [fines, setFines] = useState([]);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [menuFine, setMenuFine] = useState(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFineId, setEditFineId] = useState(null);
+  const [editPlayerId, setEditPlayerId] = useState('');
+  const [editMatchId, setEditMatchId] = useState('');
+  const [editFilterPlayersByMatch, setEditFilterPlayersByMatch] = useState(true);
+  const [editFineType, setEditFineType] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editSeason, setEditSeason] = useState(new Date().getFullYear().toString());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteFineId, setDeleteFineId] = useState(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [selectedMatchId, setSelectedMatchId] = useState('');
   const [selectedFineTypeId, setSelectedFineTypeId] = useState('');
-  const [selectedTeam, setSelectedTeam] = useState('');
-  const [selectedOpponent, setSelectedOpponent] = useState('');
-  const [matchDate, setMatchDate] = useState(new Date().toISOString().slice(0, 10));
-  const [openCreateMatchDialog, setOpenCreateMatchDialog] = useState(false);
   const [confirmPaidOpen, setConfirmPaidOpen] = useState(false);
   const [pendingPaidFine, setPendingPaidFine] = useState(null);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
@@ -54,6 +68,7 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
   const [addFineTypeOpen, setAddFineTypeOpen] = useState(false);
   const [newFineTypeName, setNewFineTypeName] = useState('');
   const [newFineTypeDefaultAmount, setNewFineTypeDefaultAmount] = useState('');
+  const [editFineTypes, setEditFineTypes] = useState({});
   const [season, setSeason] = useState(new Date().getFullYear().toString());
   const [filterDate, setFilterDate] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,12 +78,10 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
   useEffect(() => {
     const fetchLookups = async () => {
       try {
-        const [playersSnap, matchesSnap, fineTypesSnap, teamsSnap, opponentsSnap] = await Promise.all([
+        const [playersSnap, matchesSnap, fineTypesSnap] = await Promise.all([
           getDocs(collection(db, 'players')),
           getDocs(collection(db, 'matches')),
           getDocs(collection(db, 'fineTypes')),
-          getDocs(collection(db, 'teams')),
-          getDocs(collection(db, 'opponents')),
         ]);
 
         setPlayers(
@@ -82,15 +95,14 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
         setFineTypes(
           fineTypesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
         );
-        setTeams(
-          teamsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-        );
-        setOpponents(
-          opponentsSnap.docs.map((doc) => {
-            const data = doc.data();
-            return data.value || data.label || data.name || doc.id;
-          })
-        );
+        // initialize editable map for inline editing
+        const fts = fineTypesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const map = {};
+        fts.forEach((ft) => { map[ft.id] = { name: ft.name || '', defaultAmount: ft.defaultAmount ?? '' }; });
+        setEditFineTypes(map);
+        // load team cards to enable filtering players by match
+        const teamCardsSnap = await getDocs(collection(db, 'teamCards'));
+        setTeamCards(teamCardsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
         console.error('Error fetching lookups', error);
       }
@@ -127,6 +139,48 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
     [fineTypes, selectedFineTypeId]
   );
 
+  const playersForSelectedMatch = useMemo(() => {
+    if (!selectedMatchId) return players;
+    const tc = teamCards.find((t) => t.matchId === selectedMatchId);
+    if (!tc || !tc.playerNames || tc.playerNames.length === 0) return players;
+    const names = tc.playerNames;
+    return players.filter((p) => names.includes(p.label || p.name || p.playerName));
+  }, [players, teamCards, selectedMatchId]);
+
+  const playersForEditMatch = useMemo(() => {
+    if (!editMatchId) return players;
+    const tc = teamCards.find((t) => t.matchId === editMatchId);
+    if (!tc || !tc.playerNames || tc.playerNames.length === 0) return players;
+    const names = tc.playerNames;
+    return players.filter((p) => names.includes(p.label || p.name || p.playerName));
+  }, [players, teamCards, editMatchId]);
+
+  // when switching the create-form filter on, ensure selected player is valid
+  useEffect(() => {
+    if (filterPlayersByMatch && selectedMatchId) {
+      const tc = teamCards.find((t) => t.matchId === selectedMatchId);
+      const validNames = tc?.playerNames || [];
+      const selPlayer = players.find((p) => p.id === selectedPlayerId);
+      const selName = selPlayer?.label || selPlayer?.name || selPlayer?.playerName;
+      if (selectedPlayerId && selName && !validNames.includes(selName)) {
+        setSelectedPlayerId('');
+      }
+    }
+  }, [filterPlayersByMatch, selectedMatchId, teamCards, players, selectedPlayerId]);
+
+  // when switching the edit-dialog filter on, ensure edit player is valid
+  useEffect(() => {
+    if (editFilterPlayersByMatch && editMatchId) {
+      const tc = teamCards.find((t) => t.matchId === editMatchId);
+      const validNames = tc?.playerNames || [];
+      const selPlayer = players.find((p) => p.id === editPlayerId);
+      const selName = selPlayer?.label || selPlayer?.name || selPlayer?.playerName;
+      if (editPlayerId && selName && !validNames.includes(selName)) {
+        setEditPlayerId('');
+      }
+    }
+  }, [editFilterPlayersByMatch, editMatchId, teamCards, players, editPlayerId]);
+
   useEffect(() => {
     if (selectedFineType) {
       setAmount(selectedFineType.defaultAmount?.toString() ?? '');
@@ -142,17 +196,22 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
     });
   }, [filterDate, fines]);
 
-  const finesGrouped = useMemo(() => {
+  const matchGroups = useMemo(() => {
     return filteredFines.reduce((acc, fine) => {
-      const playerName = fine.playerName || 'Unknown Player';
-      if (!acc[playerName]) {
-        acc[playerName] = { playerName, fines: [], total: 0 };
+      const matchKey = fine.matchId || 'unknown-match';
+      if (!acc[matchKey]) {
+        const match = matches.find((item) => item.id === fine.matchId);
+        acc[matchKey] = { match, players: {} };
       }
-      acc[playerName].fines.push(fine);
-      acc[playerName].total += Number(fine.amount) || 0;
+      const playerName = fine.playerName || 'Unknown Player';
+      if (!acc[matchKey].players[playerName]) {
+        acc[matchKey].players[playerName] = { playerName, fines: [], total: 0 };
+      }
+      acc[matchKey].players[playerName].fines.push(fine);
+      acc[matchKey].players[playerName].total += Number(fine.amount) || 0;
       return acc;
     }, {});
-  }, [filteredFines]);
+  }, [filteredFines, matches]);
 
   const buildClipboardText = () => {
     if (filteredFines.length === 0) return 'No unpaid fines found.';
@@ -199,6 +258,41 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
     } catch (error) {
       console.error('Clipboard copy failed', error);
       setMessage({ type: 'error', text: 'Unable to copy fines to clipboard.' });
+    }
+  };
+
+  const buildClipboardTextForMatch = (matchId) => {
+    const matchFines = filteredFines.filter((f) => (f.matchId || 'unknown-match') === (matchId || 'unknown-match'));
+    if (matchFines.length === 0) return 'No unpaid fines for this match.';
+
+    const players = matchFines.reduce((acc, fine) => {
+      const playerName = fine.playerName || 'Unknown Player';
+      if (!acc[playerName]) acc[playerName] = [];
+      acc[playerName].push(fine);
+      return acc;
+    }, {});
+
+    const match = matches.find((m) => m.id === matchId);
+    const title = match ? `${new Date(match.date).toLocaleDateString()} vs ${match.opponent || 'Unknown Opponent'}` : 'Unknown Match';
+    const lines = [`Match: ${title}`];
+    Object.entries(players).forEach(([playerName, fines]) => {
+      const playerTotal = fines.reduce((sum, fine) => sum + Number(fine.amount || 0), 0);
+      lines.push(`  ${playerName} — Total owed: £${playerTotal.toFixed(2)}`);
+      fines.forEach((fine) => {
+        lines.push(`    - ${fine.fineType || 'Fine'}: £${Number(fine.amount).toFixed(2)}${fine.season ? ` (${fine.season})` : ''}`);
+      });
+    });
+    return lines.join('\n');
+  };
+
+  const copyMatchFinesToClipboard = async (matchId) => {
+    const text = buildClipboardTextForMatch(matchId);
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage({ type: 'success', text: 'Match fines copied to clipboard.' });
+    } catch (error) {
+      console.error('Clipboard copy failed', error);
+      setMessage({ type: 'error', text: 'Unable to copy match fines to clipboard.' });
     }
   };
 
@@ -250,6 +344,74 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
     }
   };
 
+  const handleMenuOpen = (event, fine) => {
+    setMenuAnchorEl(event.currentTarget);
+    setMenuFine(fine);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+    setMenuFine(null);
+  };
+
+  const handleMenuMarkAsPaid = () => {
+    if (menuFine) confirmMarkAsPaid(menuFine);
+    handleMenuClose();
+  };
+
+  const handleMenuEdit = () => {
+    if (!menuFine) return;
+    setEditFineId(menuFine.id);
+    setEditPlayerId(menuFine.playerId || '');
+    setEditMatchId(menuFine.matchId || '');
+    setEditFineType(menuFine.fineType || '');
+    setEditAmount(menuFine.amount?.toString() || '');
+    setEditSeason(menuFine.season || new Date().getFullYear().toString());
+    setEditDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const handleEditSave = async () => {
+    if (!editFineId) return;
+    try {
+      await updateDoc(doc(db, 'fines', editFineId), {
+        playerId: editPlayerId,
+        playerName: (players.find(p => p.id === editPlayerId)?.label) || '',
+        matchId: editMatchId,
+        fineType: editFineType,
+        amount: Number(editAmount),
+        season: editSeason,
+        lastUpdatedBy: currentAdminUsername,
+      });
+      setEditDialogOpen(false);
+      fetchFines();
+      setMessage({ type: 'success', text: 'Fine updated successfully.' });
+    } catch (error) {
+      console.error('Error updating fine', error);
+      setMessage({ type: 'error', text: 'Unable to update fine.' });
+    }
+  };
+
+  const handleMenuDelete = () => {
+    if (!menuFine) return;
+    setDeleteFineId(menuFine.id);
+    setDeleteConfirmOpen(true);
+    handleMenuClose();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteFineId) return;
+    try {
+      await deleteDoc(doc(db, 'fines', deleteFineId));
+      setDeleteConfirmOpen(false);
+      setMessage({ type: 'success', text: 'Fine deleted successfully.' });
+      fetchFines();
+    } catch (error) {
+      console.error('Error deleting fine', error);
+      setMessage({ type: 'error', text: 'Unable to delete fine.' });
+    }
+  };
+
   const confirmMarkAsPaid = (fine) => {
     setPendingPaidFine(fine);
     setConfirmPaidOpen(true);
@@ -260,31 +422,6 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
     setConfirmPaidOpen(false);
     await markFineAsPaid(pendingPaidFine.id);
     setPendingPaidFine(null);
-  };
-
-  const handleCreateMatch = async () => {
-    if (!selectedTeam || !selectedOpponent || !matchDate) {
-      setMessage({ type: 'error', text: 'Please select a club team, opponent and match date.' });
-      return;
-    }
-
-    try {
-      await addDoc(collection(db, 'matches'), {
-        team: selectedTeam,
-        opponent: selectedOpponent,
-        date: matchDate,
-      });
-      setMessage({ type: 'success', text: 'Match created successfully.' });
-      setOpenCreateMatchDialog(false);
-      setSelectedTeam('');
-      setSelectedOpponent('');
-      setMatchDate(new Date().toISOString().slice(0, 10));
-      const matchesSnap = await getDocs(collection(db, 'matches'));
-      setMatches(matchesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    } catch (error) {
-      console.error('Error creating match', error);
-      setMessage({ type: 'error', text: 'Unable to create match. Try again.' });
-    }
   };
 
   const handleSaveFineType = async () => {
@@ -311,6 +448,46 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
       setMessage({ type: 'error', text: 'Unable to save fine type. Try again.' });
     }
   };
+
+    const handleFineTypeChange = (id, field, value) => {
+      setEditFineTypes((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+    };
+
+    const handleUpdateFineType = async (id) => {
+      const payload = editFineTypes[id];
+      if (!payload) return;
+      if (!payload.name || payload.name.trim() === '' || payload.defaultAmount === '') {
+        setMessage({ type: 'error', text: 'Fine type name and amount are required.' });
+        return;
+      }
+      try {
+        await updateDoc(doc(db, 'fineTypes', id), {
+          name: payload.name.trim(),
+          defaultAmount: Number(payload.defaultAmount),
+        });
+        setFineTypes((prev) => prev.map((ft) => (ft.id === id ? { ...ft, name: payload.name.trim(), defaultAmount: Number(payload.defaultAmount) } : ft)));
+        setMessage({ type: 'success', text: 'Fine type updated.' });
+      } catch (error) {
+        console.error('Error updating fine type', error);
+        setMessage({ type: 'error', text: 'Unable to update fine type.' });
+      }
+    };
+
+    const handleDeleteFineTypeInline = async (id) => {
+      try {
+        await deleteDoc(doc(db, 'fineTypes', id));
+        setFineTypes((prev) => prev.filter((ft) => ft.id !== id));
+        setEditFineTypes((prev) => {
+          const copy = { ...prev };
+          delete copy[id];
+          return copy;
+        });
+        setMessage({ type: 'success', text: 'Fine type deleted.' });
+      } catch (error) {
+        console.error('Error deleting fine type', error);
+        setMessage({ type: 'error', text: 'Unable to delete fine type.' });
+      }
+    };
 
   const archiveSeason = async (seasonName) => {
     try {
@@ -360,15 +537,12 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
       <Stack spacing={2} sx={{ mb: 3 }}>
         <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 2 }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" alignItems="center" sx={{ mb: 2, gap: 2 }}>
-            <Button variant="contained" onClick={() => setOpenCreateMatchDialog(true)}>
-              Open Create Match
-            </Button>
             <Button variant="outlined" onClick={() => setAddFineTypeOpen(true)}>
               Add Fine Type
             </Button>
           </Stack>
           <Typography variant="body2" color="text.secondary">
-            Use the buttons above to create a match or add a fine type.
+            Use the button above to add a fine type.
           </Typography>
         </Paper>
 
@@ -381,24 +555,9 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
             <TextField
               select
               fullWidth
-              label="Player"
-              value={selectedPlayerId}
-              onChange={(e) => setSelectedPlayerId(e.target.value)}
-            >
-              <MenuItem value="">Select a player</MenuItem>
-              {players.map((player) => (
-                <MenuItem key={player.id} value={player.id}>
-                  {(player.label || player.name || player.playerName || 'Unknown Player')} {player.team ? `(${player.team})` : ''}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              fullWidth
               label="Match"
               value={selectedMatchId}
-              onChange={(e) => setSelectedMatchId(e.target.value)}
+              onChange={(e) => { setSelectedMatchId(e.target.value); setSelectedPlayerId(''); }}
             >
               <MenuItem value="">Select a match</MenuItem>
               {matches.map((match) => (
@@ -407,6 +566,32 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
                 </MenuItem>
               ))}
             </TextField>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="stretch">
+              <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Player"
+                  value={selectedPlayerId}
+                  onChange={(e) => setSelectedPlayerId(e.target.value)}
+                >
+                  <MenuItem value="">Select a player</MenuItem>
+                  {(filterPlayersByMatch ? playersForSelectedMatch : players).map((player) => (
+                    <MenuItem key={player.id} value={player.id}>
+                      <Box sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {(player.label || player.name || player.playerName || 'Unknown Player')} {player.team ? `(${player.team})` : ''}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+              <FormControlLabel
+                control={<Switch checked={filterPlayersByMatch} onChange={(e) => setFilterPlayersByMatch(e.target.checked)} />}
+                label={filterPlayersByMatch ? 'Match players: On' : 'Match players: Off'}
+                sx={{ whiteSpace: 'nowrap', mt: { xs: 1, sm: 0 }, alignSelf: 'flex-start' }}
+              />
+            </Stack>
 
             <TextField
               select
@@ -472,47 +657,6 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openCreateMatchDialog} onClose={() => setOpenCreateMatchDialog(false)}>
-        <DialogTitle>Create Match</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1, minWidth: 320 }}>
-            <TextField
-              select
-              fullWidth
-              label="Club Team"
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
-            >
-              <MenuItem value="">Select a club team</MenuItem>
-              {teams.map((team) => (
-                <MenuItem key={team.id} value={team.value ?? team.label ?? team.name}>
-                  {team.label ?? team.value ?? team.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <AutoCompleteTextBox
-              label="Opponent"
-              options={opponents}
-              value={selectedOpponent}
-              onChange={(val) => setSelectedOpponent(val)}
-            />
-
-            <TextField
-              fullWidth
-              label="Match Date"
-              type="date"
-              value={matchDate}
-              onChange={(e) => setMatchDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenCreateMatchDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateMatch}>Save</Button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={confirmPaidOpen} onClose={() => setConfirmPaidOpen(false)}>
         <DialogTitle>Confirm Payment</DialogTitle>
@@ -534,6 +678,85 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
           <Button variant="contained" color="success" onClick={handleConfirmMarkAsPaid}>
             Confirm
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+        <DialogTitle>Edit Fine</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1, minWidth: 320 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="stretch">
+              <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Player"
+                  value={editPlayerId}
+                  onChange={(e) => setEditPlayerId(e.target.value)}
+                >
+                  <MenuItem value="">Select a player</MenuItem>
+                  {(editFilterPlayersByMatch ? playersForEditMatch : players).map((player) => (
+                    <MenuItem key={player.id} value={player.id}>
+                      <Box sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {(player.label || player.name || player.playerName || 'Unknown Player')}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+              <FormControlLabel
+                control={<Switch checked={editFilterPlayersByMatch} onChange={(e) => setEditFilterPlayersByMatch(e.target.checked)} />}
+                label={editFilterPlayersByMatch ? 'Match players: On' : 'Match players: Off'}
+                sx={{ whiteSpace: 'nowrap', mt: { xs: 1, sm: 0 }, alignSelf: 'flex-start' }}
+              />
+            </Stack>
+
+            <TextField
+              select
+              fullWidth
+              label="Match"
+              value={editMatchId}
+              onChange={(e) => setEditMatchId(e.target.value)}
+            >
+              <MenuItem value="">Select a match</MenuItem>
+              {matches.map((match) => (
+                <MenuItem key={match.id} value={match.id}>
+                  {new Date(match.date).toLocaleDateString()} vs {match.opponent}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              fullWidth
+              label="Fine Type"
+              value={editFineType}
+              onChange={(e) => setEditFineType(e.target.value)}
+            >
+              <MenuItem value="">Select fine type</MenuItem>
+              {fineTypes.map((ft) => (
+                <MenuItem key={ft.id} value={ft.name}>{ft.name}</MenuItem>
+              ))}
+            </TextField>
+
+            <TextField fullWidth label="Amount" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+            <TextField fullWidth label="Season" value={editSeason} onChange={(e) => setEditSeason(e.target.value)} />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleEditSave}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+        <DialogTitle>Delete Fine</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this fine? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleConfirmDelete}>Delete</Button>
         </DialogActions>
       </Dialog>
 
@@ -584,45 +807,106 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
 
         {loading ? (
           <Typography>Loading unpaid fines...</Typography>
-        ) : Object.values(finesGrouped).length === 0 ? (
+        ) : Object.values(matchGroups).length === 0 ? (
           <Typography>No unpaid fines found.</Typography>
         ) : (
-          Object.values(finesGrouped).map((group) => (
-            <Box key={group.playerName} sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 2, backgroundColor: '#fafafa' }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{group.playerName}</Typography>
-                <Typography variant="subtitle2">Total owed: £{group.total.toFixed(2)}</Typography>
-              </Stack>
-              <Divider sx={{ mb: 2 }} />
-              <Stack spacing={1}>
-                {group.fines.map((fine) => {
-                  const createdAt = fine.createdAt?.toDate ? fine.createdAt.toDate() : fine.createdAt;
-                  return (
-                    <Paper key={fine.id} sx={{ p: 2, borderRadius: 2, backgroundColor: '#fff' }}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{fine.fineType || 'Fine'}</Typography>
-                          <Typography variant="body2">Match: {matches.find((match) => match.id === fine.matchId)?.opponent || 'Unknown'}</Typography>
-                          <Typography variant="body2">Amount: £{Number(fine.amount).toFixed(2)}</Typography>
-                          <Typography variant="body2">Created: {createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown'}</Typography>
-                        </Box>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          onClick={() => confirmMarkAsPaid(fine)}
-                          sx={{ alignSelf: { xs: 'stretch', sm: 'center' } }}
-                        >
-                          Mark as Paid
-                        </Button>
+          Object.entries(matchGroups).map(([matchKey, mg]) => {
+            const match = mg.match;
+            const title = match ? `${new Date(match.date).toLocaleDateString()} vs ${match.opponent || 'Unknown Opponent'}` : 'Unknown Match';
+            const matchTotal = Object.values(mg.players).reduce((s, p) => s + (p.total || 0), 0);
+            return (
+              <Box key={matchKey} sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 2, backgroundColor: '#fafafa' }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{title}</Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="subtitle2">Total owed: £{Number(matchTotal).toFixed(2)}</Typography>
+                    <Button variant="outlined" size="small" onClick={() => copyMatchFinesToClipboard(matchKey)}>Copy match fines</Button>
+                  </Stack>
+                </Stack>
+                <Divider sx={{ mb: 2 }} />
+                <Stack spacing={2}>
+                  {Object.values(mg.players).map((playerGroup) => (
+                    <Box key={playerGroup.playerName}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{playerGroup.playerName}</Typography>
+                        <Typography variant="body2">Total owed: £{(playerGroup.total || 0).toFixed(2)}</Typography>
                       </Stack>
-                    </Paper>
-                  );
-                })}
-              </Stack>
-            </Box>
-          ))
+                      <Stack spacing={1}>
+                        {playerGroup.fines.map((fine) => {
+                          const createdAt = fine.createdAt?.toDate ? fine.createdAt.toDate() : fine.createdAt;
+                          return (
+                            <Paper key={fine.id} sx={{ p: 2, borderRadius: 2, backgroundColor: '#fff' }}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexGrow: 1, textAlign: 'left', flexWrap: 'wrap' }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{fine.fineType || 'Fine'}</Typography>
+                                  <Typography variant="body2">£{Number(fine.amount).toFixed(2)}</Typography>
+                                  <Typography variant="body2">{createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown'}</Typography>
+                                  {fine.season && (
+                                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>({fine.season})</Typography>
+                                  )}
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <IconButton size="small" onClick={(e) => handleMenuOpen(e, fine)}>
+                                    <MoreVertIcon />
+                                  </IconButton>
+                                </Box>
+                              </Stack>
+                            </Paper>
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            );
+          })
         )}
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleMenuClose}
+        >
+          <MenuItem onClick={handleMenuMarkAsPaid}>Mark as Paid</MenuItem>
+          <MenuItem onClick={handleMenuEdit}>Edit</MenuItem>
+          <MenuItem onClick={handleMenuDelete}>Delete</MenuItem>
+        </Menu>
       </Paper>
+
+      <Accordion sx={{ mt: 2 }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}> 
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            Edit Fine Types
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Stack spacing={2}>
+            {fineTypes.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">No fine types defined.</Typography>
+            ) : (
+              fineTypes.map((ft) => (
+                <Stack key={ft.id} direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems="center">
+                  <TextField
+                    label="Name"
+                    value={editFineTypes[ft.id]?.name ?? ''}
+                    onChange={(e) => handleFineTypeChange(ft.id, 'name', e.target.value)}
+                    sx={{ flex: 1, minWidth: 0 }}
+                  />
+                  <TextField
+                    label="Default Amount"
+                    type="number"
+                    value={editFineTypes[ft.id]?.defaultAmount ?? ''}
+                    onChange={(e) => handleFineTypeChange(ft.id, 'defaultAmount', e.target.value)}
+                    sx={{ width: 140 }}
+                  />
+                  <Button variant="outlined" onClick={() => handleUpdateFineType(ft.id)}>Save</Button>
+                  <Button variant="contained" color="error" onClick={() => handleDeleteFineTypeInline(ft.id)}>Delete</Button>
+                </Stack>
+              ))
+            )}
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
 
       <Accordion sx={{ mt: 3 }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}> 

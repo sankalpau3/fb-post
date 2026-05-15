@@ -5,12 +5,14 @@ import TeamCards from "./compositions/TeamCards";
 import PsAd from "./compositions/PsAd";
 import UpdatePlayer from "./compositions/UpdatePlayer";
 import Fines from "./compositions/Fines";
+import CreateMatch from "./compositions/CreateMatch";
 import {
   addDoc,
   collection,
   getDocs,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import clubLogo from "./CDN/static_content/imgages/logo.jpg";
 import {
   AppBar,
   Alert,
@@ -107,20 +109,38 @@ function App() {
     }
   };
 
-  const renderLoginPage = () => (
-    <Box sx={{ maxWidth: 700, mx: 'auto', mt: 2, px: 1 }}>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
-        Admin Login Required
-      </Typography>
-      <Typography variant="body2" sx={{ mb: 2 }}>
-        The Fines page is restricted to authorized users only. Use the admin credentials to sign in.
-      </Typography>
+  const renderLoginContent = () => (
+    <Box sx={{ width: '100%', maxWidth: 420, mx: 'auto' }}>
+      <Box sx={{ mb: 6, textAlign: 'center' }}>
+        <Box sx={{ mb: 2, textAlign: 'center' }}>
+          <Box
+            component="img"
+            src={clubLogo}
+            alt="Club logo"
+            sx={{
+              mx: 'auto',
+              width: 120,
+              height: 120,
+              borderRadius: 3,
+              objectFit: 'contain',
+              boxShadow: 3,
+            }}
+          />
+        </Box>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          Club Admin Login
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.8, mt: 1 }}>
+          Secure access for authorized club administrators.
+        </Typography>
+      </Box>
+
       {loginError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {loginError}
         </Alert>
       )}
-      <Stack spacing={2} sx={{ mb: 4, maxWidth: 420 }}>
+      <Stack spacing={2} sx={{ mb: 4 }}>
         <TextField
           label="Username"
           value={loginUsername}
@@ -134,16 +154,49 @@ function App() {
           onChange={(e) => setLoginPassword(e.target.value)}
           fullWidth
         />
-        <Button variant="contained" onClick={handleLogin} disabled={adminLoading}>
+        <Button variant="contained" fullWidth onClick={handleLogin} disabled={adminLoading}>
           {adminLoading ? 'Loading admin credentials…' : 'Log in as Admin'}
         </Button>
       </Stack>
     </Box>
   );
 
+  const renderLoginScreen = () => (
+    <Box
+      sx={{
+        height: '100vh',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        px: 2,
+        background: 'linear-gradient(180deg, #0f5d26 0%, #1f8b4c 45%, #ffffff 100%)',
+      }}
+    >
+      <Paper
+        elevation={12}
+        sx={{
+          width: '100%',
+          maxWidth: 500,
+          p: 4,
+          borderRadius: 4,
+          backdropFilter: 'blur(20px)',
+          backgroundColor: 'rgba(255,255,255,0.92)',
+        }}
+      >
+        {renderLoginContent()}
+      </Paper>
+    </Box>
+  );
+
+  if (!isAdminLoggedIn) {
+    return renderLoginScreen();
+  }
+
   const viewItems = [
     { key: "player", label: "Player Sponsors" },
     { key: "team", label: "Team Cards" },
+    { key: "matches", label: "Matches" },
     { key: "psad", label: "PS Ad." },
     { key: "updatePlayer", label: "Update Players" },
     { key: "fines", label: "Fines" },
@@ -152,6 +205,7 @@ function App() {
   const viewLabels = {
     player: "Player Sponsors",
     team: "Team Cards",
+    matches: "Matches",
     psad: "PS Ad.",
     updatePlayer: "Update Players",
     fines: "Fines",
@@ -163,12 +217,14 @@ function App() {
         return <PlayerSoponser />;
       case "team":
         return <TeamCards />;
+      case "matches":
+        return <CreateMatch />;
       case "psad":
         return <PsAd />;
       case "updatePlayer":
         return <UpdatePlayer />;
       case "fines":
-        return isAdminLoggedIn ? <Fines currentAdminUsername={currentAdminUsername} /> : renderLoginPage();
+        return <Fines currentAdminUsername={currentAdminUsername} />;
       default:
         return <PlayerSoponser />;
     }
@@ -215,7 +271,7 @@ function App() {
               </Stack>
             )}
 
-            {isAdminLoggedIn && (
+            {isAdminLoggedIn && !isMobile && (
               <Button variant="outlined" color="secondary" onClick={handleLogout}>
                 Log out
               </Button>
@@ -239,6 +295,11 @@ function App() {
                 <ListItemText primary={item.label} />
               </ListItemButton>
             ))}
+            {isAdminLoggedIn && isMobile && (
+              <ListItemButton onClick={() => { handleLogout(); setDrawerOpen(false); }}>
+                <ListItemText primary="Log out" />
+              </ListItemButton>
+            )}
           </List>
         </Box>
       </Drawer>
