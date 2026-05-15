@@ -1,20 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Box, TextField, Stack, Typography, MenuItem, Radio } from '@mui/material';
+import { Alert, Button, Box, TextField, Stack, Typography, MenuItem, Radio } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
+import mainSponsors from '../../CDN/static_content/imgages/mainSponsors.png';
 import html2canvas from 'html2canvas';
 import AutoCompleteTextBox from "../../component/dropdown"
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 const PlayerSoponser = () => {
-    const [overlayImage, setOverlayImage] = useState(null);
+    const [overlayImage, setOverlayImage] = useState(mainSponsors); // Default overlay image
     const [team, setTeam] = useState("");
     const [oponent, setoPonents] = useState("");
     const [playerNames, setPlayerNames] = useState(Array(11).fill(""));
     const [players, setPlayers] = useState([]);
     const [teams, setTeams] = useState([]);
-    const [oponentTeams, setOponentTeams] = useState([]);
+    const [matches, setMatches] = useState([]);
+    const [teamCards, setTeamCards] = useState([]);
+    const [selectedMatchId, setSelectedMatchId] = useState('');
+    const [teamCardEditingId, setTeamCardEditingId] = useState(null);
+    const [message, setMessage] = useState(null);
 
     // States for Captain and Wicket Keeper
     const [captainIndex, setCaptainIndex] = useState(null);
@@ -35,8 +40,13 @@ const PlayerSoponser = () => {
 
             const opponentsSnapshot = await getDocs(collection(db, 'opponents'));
             const opponentsData = opponentsSnapshot.docs.map(doc => doc.data());
-            setOponentTeams(opponentsData);
             if (opponentsData.length > 0) setoPonents(opponentsData[0].value);
+
+            const matchesSnapshot = await getDocs(collection(db, 'matches'));
+            setMatches(matchesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+            const teamCardsSnapshot = await getDocs(collection(db, 'teamCards'));
+            setTeamCards(teamCardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         };
         fetchData();
     }, []);
@@ -50,6 +60,116 @@ const PlayerSoponser = () => {
         const newNames = [...playerNames];
         newNames[index] = value;
         setPlayerNames(newNames);
+    };
+
+    const handleMatchChange = (matchId) => {
+        setSelectedMatchId(matchId);
+        const selectedMatch = matches.find((match) => match.id === matchId);
+        if (selectedMatch) {
+            setTeam(selectedMatch.team || '');
+            setoPonents(selectedMatch.opponent || '');
+        } else {
+            setTeam('');
+            setoPonents('');
+        }
+
+        // Auto-populate if a team card already exists for this match
+        const existing = teamCards.find((c) => c.matchId === matchId);
+        if (existing) {
+            setTeamCardEditingId(existing.id);
+            setPlayerNames(existing.playerNames || Array(11).fill(''));
+            setCaptainIndex(existing.captainIndex ?? null);
+            setWkIndex(existing.wkIndex ?? null);
+            setMessage({ type: 'info', text: 'Loaded existing team card for this match.' });
+        } else {
+            // clear form but keep selected match
+            setTeamCardEditingId(null);
+            setPlayerNames(Array(11).fill(''));
+            setCaptainIndex(null);
+            setWkIndex(null);
+            setMessage(null);
+        }
+    };
+
+    const refreshTeamCards = async () => {
+        const teamCardsSnapshot = await getDocs(collection(db, 'teamCards'));
+        setTeamCards(teamCardsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    };
+
+    const resetTeamCardForm = () => {
+        setTeamCardEditingId(null);
+        setSelectedMatchId('');
+        setTeam('');
+        setoPonents('');
+        setPlayerNames(Array(11).fill(''));
+        setCaptainIndex(null);
+        setWkIndex(null);
+        setMessage(null);
+    };
+
+    const handleSaveTeamCard = async () => {
+        if (!selectedMatchId) {
+            setMessage({ type: 'error', text: 'Select a match before saving the team card.' });
+            return;
+        }
+
+        try {
+            const payload = {
+                matchId: selectedMatchId,
+                team,
+                opponent: oponent,
+                playerNames,
+                captainIndex,
+                wkIndex,
+                updatedAt: new Date().toISOString(),
+            };
+            if (teamCardEditingId) {
+                await updateDoc(doc(db, 'teamCards', teamCardEditingId), payload);
+                setMessage({ type: 'success', text: 'Team card updated successfully.' });
+            } else {
+                await addDoc(collection(db, 'teamCards'), {
+                    ...payload,
+                    createdAt: new Date().toISOString(),
+                });
+                setMessage({ type: 'success', text: 'Team card saved successfully.' });
+            }
+            refreshTeamCards();
+            resetTeamCardForm();
+        } catch (error) {
+            console.error('Error saving team card', error);
+            setMessage({ type: 'error', text: 'Unable to save team card. Try again.' });
+        }
+    };
+
+    const handleEditTeamCard = (card) => {
+        setTeamCardEditingId(card.id);
+        setSelectedMatchId(card.matchId || '');
+        const selectedMatch = matches.find((match) => match.id === card.matchId);
+        if (selectedMatch) {
+            setTeam(selectedMatch.team || '');
+            setoPonents(selectedMatch.opponent || '');
+        } else {
+            setTeam(card.team || '');
+            setoPonents(card.opponent || '');
+        }
+        setPlayerNames(card.playerNames || Array(11).fill(''));
+        setCaptainIndex(card.captainIndex ?? null);
+        setWkIndex(card.wkIndex ?? null);
+        setMessage(null);
+    };
+
+    const handleDeleteTeamCard = async (cardId) => {
+        try {
+            await deleteDoc(doc(db, 'teamCards', cardId));
+            setMessage({ type: 'success', text: 'Team card deleted.' });
+            if (teamCardEditingId === cardId) {
+                resetTeamCardForm();
+            }
+            refreshTeamCards();
+        } catch (error) {
+            console.error('Error deleting team card', error);
+            setMessage({ type: 'error', text: 'Unable to delete team card.' });
+        }
     };
 
     const downloadFrameAsJpg = async () => {
@@ -75,25 +195,57 @@ const PlayerSoponser = () => {
         >
             {/* 1. CONTROLS */}
             <Box sx={{ width: { xs: '100%', md: '500px' }, p: 2, border: '1px solid #ccc', borderRadius: 2, boxSizing: 'border-box', maxHeight: '90vh', overflowY: 'auto' }}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Match Details</Typography>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Team Card Details</Typography>
 
-                <TextField fullWidth select label="Your Team" value={team} onChange={(e) => setTeam(e.target.value)} sx={{ mb: 2 }}>
+                {message && (
+                    <Alert severity={message.type} sx={{ mb: 2 }}>
+                        {message.text}
+                    </Alert>
+                )}
+
+                <TextField
+                    select
+                    fullWidth
+                    label="Select Match"
+                    value={selectedMatchId}
+                    onChange={(e) => handleMatchChange(e.target.value)}
+                    sx={{ mb: 2 }}
+                >
+                    <MenuItem value="">Select a match</MenuItem>
+                    {matches.map((match) => (
+                        <MenuItem key={match.id} value={match.id}>
+                            {new Date(match.date).toLocaleDateString()} vs {match.opponent}
+                        </MenuItem>
+                    ))}
+                </TextField>
+
+                <TextField fullWidth select label="Your Team" value={team} onChange={(e) => setTeam(e.target.value)} sx={{ mb: 2 }} disabled>
                     {teams.map((option) => (
                         <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
                     ))}
                 </TextField>
 
-                <AutoCompleteTextBox
+                <TextField
+                    fullWidth
                     label="Opponent"
-                    options={oponentTeams}
                     value={oponent}
-                    onChange={(val) => setoPonents(val)}
+                    disabled
+                    sx={{ mb: 2 }}
                 />
 
                 <Button component="label" variant="outlined" fullWidth startIcon={<CloudUploadIcon />} sx={{ mb: 3 }}>
                     Upload Action Photo
                     <input type="file" hidden accept="image/*" onChange={handleFileChange} />
                 </Button>
+
+                <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+                    <Button variant="contained" fullWidth onClick={handleSaveTeamCard}>
+                        {teamCardEditingId ? 'Update Team Card' : 'Save Team Card'}
+                    </Button>
+                    <Button variant="outlined" fullWidth onClick={resetTeamCardForm}>
+                        Reset
+                    </Button>
+                </Stack>
 
                 <Stack direction="row" justifyContent="space-between" sx={{ mb: 1, px: 1 }}>
                     <Typography variant="subtitle2">Starting XI</Typography>
@@ -128,7 +280,10 @@ const PlayerSoponser = () => {
                 <Button variant="contained" fullWidth onClick={downloadFrameAsJpg} sx={{ mt: 2, py: 1.5, backgroundColor: '#1a237e' }}>
                     Generate Graphic
                 </Button>
+
+                {/* saved team cards moved below the preview */}
             </Box>
+            {/* Saved team cards list was moved inside the preview below the graphic */}
 
             {/* 2. PREVIEW */}
             <Box sx={{ width: { xs: '100%', md: 'auto' }, overflowX: 'auto', p: { xs: 1, md: 0 }, backgroundColor: '#e0e0e0', borderRadius: 2 }}>
@@ -228,7 +383,38 @@ const PlayerSoponser = () => {
                             );
                         })}
                     </Box>
-                </Box>
+                        {/* Saved team cards list - placed under the graphic */}
+                        <Box sx={{ mt: 2, p: 1 }}>
+                            <Typography variant="h6" sx={{ mb: 1 }}>Saved Team Cards</Typography>
+                            {teamCards.length === 0 ? (
+                                <Typography variant="body2" color="text.secondary">No saved team cards yet.</Typography>
+                            ) : (
+                                <Stack spacing={2}>
+                                    {teamCards.map((card) => {
+                                        const match = matches.find((matchItem) => matchItem.id === card.matchId);
+                                        return (
+                                            <Box key={card.id} sx={{ p: 2, border: '1px solid #ddd', borderRadius: 2 }}>
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                                    {match ? `${new Date(match.date).toLocaleDateString()} vs ${match.opponent}` : 'Unlinked Match'}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Team: {card.team} • Players: {card.playerNames.filter(Boolean).length || '0'}
+                                                </Typography>
+                                                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                                                    <Button size="small" variant="outlined" onClick={() => handleEditTeamCard(card)}>
+                                                        Edit
+                                                    </Button>
+                                                    <Button size="small" variant="contained" color="error" onClick={() => handleDeleteTeamCard(card.id)}>
+                                                        Delete
+                                                    </Button>
+                                                </Stack>
+                                            </Box>
+                                        );
+                                    })}
+                                </Stack>
+                            )}
+                        </Box>
+                    </Box>
             </Box>
         </Stack>
     );
