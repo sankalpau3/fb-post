@@ -185,11 +185,6 @@ function App() {
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {viewLabels[activeView] || "Fine Management App"}
             </Typography>
-            {!isMobile && (
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                v{packageInfo.version}
-              </Typography>
-            )}
           </Box>
 
           {isMobile ? (
@@ -216,11 +211,16 @@ function App() {
             </Stack>
           )}
 
-          {isAdminLoggedIn && (
-            <Button variant="outlined" color="secondary" onClick={handleLogout}>
-              Log out
-            </Button>
-          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" sx={{ opacity: 0.7 }}>
+              v{packageInfo.version}
+            </Typography>
+            {isAdminLoggedIn && (
+              <Button variant="outlined" color="secondary" onClick={handleLogout}>
+                Log out
+              </Button>
+            )}
+          </Box>
         </Toolbar>
       </AppBar>
 
