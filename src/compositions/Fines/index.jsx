@@ -54,6 +54,7 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
   const [editFilterPlayersByMatch, setEditFilterPlayersByMatch] = useState(true);
   const [editFineType, setEditFineType] = useState('');
   const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
   const [editSeason, setEditSeason] = useState(new Date().getFullYear().toString());
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteFineId, setDeleteFineId] = useState(null);
@@ -65,6 +66,7 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [archiveConfirmTypedYear, setArchiveConfirmTypedYear] = useState('');
   const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
   const [addFineTypeOpen, setAddFineTypeOpen] = useState(false);
   const [newFineTypeName, setNewFineTypeName] = useState('');
   const [newFineTypeDefaultAmount, setNewFineTypeDefaultAmount] = useState('');
@@ -240,8 +242,9 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
         const playerTotal = fines.reduce((sum, fine) => sum + Number(fine.amount || 0), 0);
         lines.push(`  ${playerName} — Total owed: £${playerTotal.toFixed(2)}`);
         fines.forEach((fine) => {
+          const descriptionText = fine.description ? ` - ${fine.description}` : '';
           lines.push(
-            `    - ${fine.fineType || 'Fine'}: £${Number(fine.amount).toFixed(2)}${fine.season ? ` (${fine.season})` : ''}`
+            `    - ${fine.fineType || 'Fine'}: £${Number(fine.amount).toFixed(2)}${descriptionText}${fine.season ? ` (${fine.season})` : ''}`
           );
         });
       });
@@ -279,7 +282,8 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
       const playerTotal = fines.reduce((sum, fine) => sum + Number(fine.amount || 0), 0);
       lines.push(`  ${playerName} — Total owed: £${playerTotal.toFixed(2)}`);
       fines.forEach((fine) => {
-        lines.push(`    - ${fine.fineType || 'Fine'}: £${Number(fine.amount).toFixed(2)}${fine.season ? ` (${fine.season})` : ''}`);
+        const descriptionText = fine.description ? ` - ${fine.description}` : '';
+        lines.push(`    - ${fine.fineType || 'Fine'}: £${Number(fine.amount).toFixed(2)}${descriptionText}${fine.season ? ` (${fine.season})` : ''}`);
       });
     });
     return lines.join('\n');
@@ -297,20 +301,23 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
   };
 
   const handleSaveFine = async () => {
-    if (!selectedPlayerId || !selectedMatchId || !selectedFineTypeId || !amount) {
-      setMessage({ type: 'error', text: 'Please select player, match, fine type and amount.' });
+    if (!selectedPlayerId || !selectedMatchId || !selectedFineTypeId || !amount || !description) {
+      setMessage({ type: 'error', text: 'Please select match, fine type, player, description and amount.' });
       return;
     }
 
     const player = players.find((item) => item.id === selectedPlayerId);
     const fineType = fineTypes.find((item) => item.id === selectedFineTypeId);
+    const playerName = player?.label || player?.name || player?.playerName || 'Unknown Player';
+    const effectiveDescription = description.trim();
 
     try {
       const docRef = await addDoc(collection(db, 'fines'), {
         playerId: selectedPlayerId,
-        playerName: player?.label || player?.name || player?.playerName || 'Unknown Player',
+        playerName,
         matchId: selectedMatchId,
         amount: Number(amount),
+        description: effectiveDescription,
         isPaid: false,
         isArchived: false,
         season: season || new Date().getFullYear().toString(),
@@ -320,9 +327,8 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
       });
       setMessage({ type: 'success', text: `Fine saved (${docRef.id}) and will be displayed after refresh.` });
       setSelectedPlayerId('');
-      setSelectedMatchId('');
-      setSelectedFineTypeId('');
       setAmount('');
+      setDescription('');
       setSeason(new Date().getFullYear().toString());
       await fetchFines();
     } catch (error) {
@@ -366,6 +372,7 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
     setEditMatchId(menuFine.matchId || '');
     setEditFineType(menuFine.fineType || '');
     setEditAmount(menuFine.amount?.toString() || '');
+    setEditDescription(menuFine.description || '');
     setEditSeason(menuFine.season || new Date().getFullYear().toString());
     setEditDialogOpen(true);
     handleMenuClose();
@@ -379,6 +386,7 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
         playerName: (players.find(p => p.id === editPlayerId)?.label) || '',
         matchId: editMatchId,
         fineType: editFineType,
+        description: editDescription.trim(),
         amount: Number(editAmount),
         season: editSeason,
         lastUpdatedBy: currentAdminUsername,
@@ -557,12 +565,27 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
               fullWidth
               label="Match"
               value={selectedMatchId}
-              onChange={(e) => { setSelectedMatchId(e.target.value); setSelectedPlayerId(''); }}
+              onChange={(e) => { setSelectedMatchId(e.target.value); setSelectedPlayerId(''); setDescription(''); }}
             >
               <MenuItem value="">Select a match</MenuItem>
               {matches.map((match) => (
                 <MenuItem key={match.id} value={match.id}>
                   {new Date(match.date).toLocaleDateString()} vs {match.opponent} ({match.team})
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              fullWidth
+              label="Fine Type"
+              value={selectedFineTypeId}
+              onChange={(e) => setSelectedFineTypeId(e.target.value)}
+            >
+              <MenuItem value="">Select a fine type</MenuItem>
+              {fineTypes.map((fineType) => (
+                <MenuItem key={fineType.id} value={fineType.id}>
+                  {fineType.name} – £{fineType.defaultAmount}
                 </MenuItem>
               ))}
             </TextField>
@@ -594,19 +617,12 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
             </Stack>
 
             <TextField
-              select
               fullWidth
-              label="Fine Type"
-              value={selectedFineTypeId}
-              onChange={(e) => setSelectedFineTypeId(e.target.value)}
-            >
-              <MenuItem value="">Select a fine type</MenuItem>
-              {fineTypes.map((fineType) => (
-                <MenuItem key={fineType.id} value={fineType.id}>
-                  {fineType.name} – £{fineType.defaultAmount}
-                </MenuItem>
-              ))}
-            </TextField>
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              helperText="Enter a short description for the fine."
+            />
 
             <TextField
               fullWidth
@@ -739,6 +755,14 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
               ))}
             </TextField>
 
+            <TextField
+              fullWidth
+              label="Description"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              helperText="Enter a short description for the fine."
+            />
+
             <TextField fullWidth label="Amount" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
             <TextField fullWidth label="Season" value={editSeason} onChange={(e) => setEditSeason(e.target.value)} />
           </Stack>
@@ -840,6 +864,11 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
                                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexGrow: 1, textAlign: 'left', flexWrap: 'wrap' }}>
                                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{fine.fineType || 'Fine'}</Typography>
                                   <Typography variant="body2">£{Number(fine.amount).toFixed(2)}</Typography>
+                                  {fine.description && (
+                                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                      {fine.description}
+                                    </Typography>
+                                  )}
                                   <Typography variant="body2">{createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown'}</Typography>
                                   {fine.season && (
                                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>({fine.season})</Typography>

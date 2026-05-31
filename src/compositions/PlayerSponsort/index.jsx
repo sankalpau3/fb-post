@@ -44,15 +44,17 @@ const PlayerSoponser = () => {
 
     const downloadFrameAsJpg = async () => {
         if (graphicRef.current) {
+            const scaleFactor = Math.max(2, window.devicePixelRatio || 1);
             const canvas = await html2canvas(graphicRef.current, {
                 useCORS: true,
                 allowTaint: false,
-                scale: 2, 
+                scale: scaleFactor,
+                imageTimeout: 15000,
             });
-            const image = canvas.toDataURL("image/jpeg", 0.9);
+            const image = canvas.toDataURL("image/png");
             const link = document.createElement('a');
             link.href = image;
-            link.download = `${name.replace(/\s+/g, '_') || 'player'}_stats.jpg`;
+            link.download = `${name.replace(/\s+/g, '_') || 'player'}_stats.png`;
             link.click();
         }
     };
