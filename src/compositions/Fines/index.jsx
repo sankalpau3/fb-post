@@ -76,6 +76,21 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [archiveSeasonName, setArchiveSeasonName] = useState(new Date().getFullYear().toString());
+  const [expandedMatchKeys, setExpandedMatchKeys] = useState([]);
+
+  const isMatchGroupToday = (match, playersGroup) => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (match?.date) {
+      const matchDateKey = new Date(match.date).toISOString().slice(0, 10);
+      if (matchDateKey === todayKey) return true;
+    }
+    return Object.values(playersGroup).some((playerGroup) =>
+      playerGroup.fines.some((fine) => {
+        const createdAt = fine.createdAt?.toDate ? fine.createdAt.toDate() : fine.createdAt;
+        return createdAt && new Date(createdAt).toISOString().slice(0, 10) === todayKey;
+      })
+    );
+  };
 
   useEffect(() => {
     const fetchLookups = async () => {
@@ -214,6 +229,22 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
       return acc;
     }, {});
   }, [filteredFines, matches]);
+
+  useEffect(() => {
+    const todaysMatchKeys = Object.entries(matchGroups)
+      .filter(([_, mg]) => isMatchGroupToday(mg.match, mg.players))
+      .map(([matchKey]) => matchKey);
+    setExpandedMatchKeys(todaysMatchKeys);
+  }, [matchGroups]);
+
+  const handleMatchAccordionChange = (matchKey) => (event, isExpanded) => {
+    setExpandedMatchKeys((prev) => {
+      if (isExpanded) {
+        return Array.from(new Set([...prev, matchKey]));
+      }
+      return prev.filter((key) => key !== matchKey);
+    });
+  };
 
   const buildClipboardText = () => {
     if (filteredFines.length === 0) return 'No unpaid fines found.';
@@ -838,56 +869,69 @@ const Fines = ({ currentAdminUsername = 'admin' }) => {
             const match = mg.match;
             const title = match ? `${new Date(match.date).toLocaleDateString()} vs ${match.opponent || 'Unknown Opponent'}` : 'Unknown Match';
             const matchTotal = Object.values(mg.players).reduce((s, p) => s + (p.total || 0), 0);
+            const isExpanded = expandedMatchKeys.includes(matchKey);
+
             return (
-              <Box key={matchKey} sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 2, backgroundColor: '#fafafa' }}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{title}</Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle2">Total owed: £{Number(matchTotal).toFixed(2)}</Typography>
-                    <Button variant="outlined" size="small" onClick={() => copyMatchFinesToClipboard(matchKey)}>Copy match fines</Button>
+              <Accordion
+                key={matchKey}
+                expanded={isExpanded}
+                onChange={handleMatchAccordionChange(matchKey)}
+                sx={{ mb: 2, borderRadius: 2, backgroundColor: '#fafafa', '&:before': { display: 'none' } }}
+              >
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" sx={{ width: '100%', gap: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{title}</Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="subtitle2">Total owed: £{Number(matchTotal).toFixed(2)}</Typography>
+                      <Button variant="outlined" size="small" onClick={(e) => { e.stopPropagation(); copyMatchFinesToClipboard(matchKey); }}>
+                        Copy match fines
+                      </Button>
+                    </Stack>
                   </Stack>
-                </Stack>
-                <Divider sx={{ mb: 2 }} />
-                <Stack spacing={2}>
-                  {Object.values(mg.players).map((playerGroup) => (
-                    <Box key={playerGroup.playerName}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{playerGroup.playerName}</Typography>
-                        <Typography variant="body2">Total owed: £{(playerGroup.total || 0).toFixed(2)}</Typography>
-                      </Stack>
-                      <Stack spacing={1}>
-                        {playerGroup.fines.map((fine) => {
-                          const createdAt = fine.createdAt?.toDate ? fine.createdAt.toDate() : fine.createdAt;
-                          return (
-                            <Paper key={fine.id} sx={{ p: 2, borderRadius: 2, backgroundColor: '#fff' }}>
-                              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexGrow: 1, textAlign: 'left', flexWrap: 'wrap' }}>
-                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{fine.fineType || 'Fine'}</Typography>
-                                  <Typography variant="body2">£{Number(fine.amount).toFixed(2)}</Typography>
-                                  {fine.description && (
-                                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                                      {fine.description}
-                                    </Typography>
-                                  )}
-                                  <Typography variant="body2">{createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown'}</Typography>
-                                  {fine.season && (
-                                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>({fine.season})</Typography>
-                                  )}
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <IconButton size="small" onClick={(e) => handleMenuOpen(e, fine)}>
-                                    <MoreVertIcon />
-                                  </IconButton>
-                                </Box>
-                              </Stack>
-                            </Paper>
-                          );
-                        })}
-                      </Stack>
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Divider sx={{ mb: 2 }} />
+                  <Stack spacing={2}>
+                    {Object.values(mg.players).map((playerGroup) => (
+                      <Box key={playerGroup.playerName}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{playerGroup.playerName}</Typography>
+                          <Typography variant="body2">Total owed: £{(playerGroup.total || 0).toFixed(2)}</Typography>
+                        </Stack>
+                        <Stack spacing={1}>
+                          {playerGroup.fines.map((fine) => {
+                            const createdAt = fine.createdAt?.toDate ? fine.createdAt.toDate() : fine.createdAt;
+                            return (
+                              <Paper key={fine.id} sx={{ p: 2, borderRadius: 2, backgroundColor: '#fff' }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexGrow: 1, textAlign: 'left', flexWrap: 'wrap' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{fine.fineType || 'Fine'}</Typography>
+                                    <Typography variant="body2">£{Number(fine.amount).toFixed(2)}</Typography>
+                                    {fine.description && (
+                                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                        {fine.description}
+                                      </Typography>
+                                    )}
+                                    <Typography variant="body2">{createdAt ? new Date(createdAt).toLocaleDateString() : 'Unknown'}</Typography>
+                                    {fine.season && (
+                                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>({fine.season})</Typography>
+                                    )}
+                                  </Box>
+                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <IconButton size="small" onClick={(e) => handleMenuOpen(e, fine)}>
+                                      <MoreVertIcon />
+                                    </IconButton>
+                                  </Box>
+                                </Stack>
+                              </Paper>
+                            );
+                          })}
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
             );
           })
         )}
