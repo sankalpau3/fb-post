@@ -36,21 +36,24 @@ const ImageOverlays = () => {
     };
 
     const downloadFrameAsJpg = async (event) => {
-        // I want to download the content of the #graphic-container as a JPG image when this function is called
+        // I want to download the content of the #graphic-container as a PNG image when this function is called
 
         if (graphicRef.current) {
-            // 4. Capture the element
+            const scaleFactor = Math.max(2, window.devicePixelRatio || 1);
+
+            // 4. Capture the element with a higher resolution to preserve quality
             const canvas = await html2canvas(graphicRef.current, {
                 useCORS: true,      // Essential for loading external images
                 allowTaint: false,
-                scale: 2,           // Higher quality/resolution
+                scale: scaleFactor,
+                imageTimeout: 15000,
             });
 
-            // 5. Convert to JPG and download
-            const image = canvas.toDataURL("image/jpeg", 0.9);
+            // 5. Convert to PNG and download
+            const image = canvas.toDataURL("image/png");
             const link = document.createElement('a');
             link.href = image;
-            link.download = `${name.replace(/\s+/g, '_')}_stats.jpg`;
+            link.download = `${name.replace(/\s+/g, '_') || 'graphic'}_stats.png`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

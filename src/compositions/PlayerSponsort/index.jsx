@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Box, TextField, Stack, Typography } from '@mui/material';
+import { Button, Box, TextField, Stack } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
 import sample from '../../CDN/static_content/imgages/sample_headshot.jpg';
 import sampleAd from '../../CDN/static_content/imgages/sample_ad.jpg';
 import html2canvas from 'html2canvas';
-import packageInfo from '../../../package.json';
 import AutoCompleteTextBox from "../../component/dropdown"
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -44,15 +43,18 @@ const PlayerSoponser = () => {
 
     const downloadFrameAsJpg = async () => {
         if (graphicRef.current) {
+            const scaleFactor = Math.max(3, Math.round((window.devicePixelRatio || 1) * 2));
             const canvas = await html2canvas(graphicRef.current, {
                 useCORS: true,
                 allowTaint: false,
-                scale: 2, 
+                scale: scaleFactor,
+                imageTimeout: 15000,
+                backgroundColor: null,
             });
-            const image = canvas.toDataURL("image/jpeg", 0.9);
+            const image = canvas.toDataURL("image/png");
             const link = document.createElement('a');
             link.href = image;
-            link.download = `${name.replace(/\s+/g, '_') || 'player'}_stats.jpg`;
+            link.download = `${name.replace(/\s+/g, '_') || 'player'}_stats.png`;
             link.click();
         }
     };
@@ -158,9 +160,23 @@ const PlayerSoponser = () => {
                     <img src={template} alt="Base" style={{ width: '100%', height: '100%', objectFit: 'contain', zIndex: 1 }} />
 
                     <Box sx={{
-                        position: 'absolute', top: '100px', left: '20px', width: '210px', height: '280px', zIndex: 2,
-                        backgroundImage: `url(${overlayImage || sample})`, backgroundSize: 'cover', backgroundPosition: 'center'
-                    }} />
+                        position: 'absolute',
+                        top: '100px',
+                        left: '20px',
+                        width: '210px',
+                        height: '280px',
+                        zIndex: 2,
+                        overflow: 'hidden',
+                        borderRadius: 1,
+                        backgroundColor: '#000',
+                        boxShadow: '0 12px 20px rgba(0,0,0,0.35)'
+                    }}>
+                        <img
+                            src={overlayImage || sample}
+                            alt="Player"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                    </Box>
 
                     <Box sx={{ position: 'absolute', top: '85px', left: '250px', color: 'white', textShadow: '3px 3px 6px rgba(0,0,0,0.8)', display: 'flex', zIndex: 3 }}>
                         <div style={{ fontFamily: 'Kanit, sans-serif', fontSize: '7rem', fontWeight: 'bold', lineHeight: 1, marginLeft: '10px' }}>{scoreText}</div>
@@ -179,9 +195,22 @@ const PlayerSoponser = () => {
                     </Box>
 
                     <Box sx={{
-                        position: 'absolute', top: '400px', left: '20px', width: '675px', height: '140px', zIndex: 2,
-                        backgroundImage: `url(${overlayImageAd || sampleAd})`, backgroundSize: 'cover', backgroundPosition: 'center'
-                    }} />
+                        position: 'absolute',
+                        top: '400px',
+                        left: '20px',
+                        width: '675px',
+                        height: '140px',
+                        zIndex: 2,
+                        overflow: 'hidden',
+                        borderRadius: 1,
+                        backgroundColor: '#000',
+                    }}>
+                        <img
+                            src={overlayImageAd || sampleAd}
+                            alt="Ad banner"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                    </Box>
                 </Box>
             </Box>
         </Stack>
