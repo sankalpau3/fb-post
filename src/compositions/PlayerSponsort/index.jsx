@@ -20,15 +20,26 @@ const PlayerSoponser = () => {
     const [team2, setTeam2] = useState("ABC CC 1st XI");
     const [overlayImageAd, setOverlayImageAd] = useState(null);
     const [players, setPlayers] = useState([]);
+    const [sponsorPhotos, setSponsorPhotos] = useState([]);
     const graphicRef = useRef(null);
 
     useEffect(() => {
         const fetchPlayers = async () => {
             const querySnapshot = await getDocs(collection(db, 'players'));
-            const data = querySnapshot.docs.map(doc => doc.data());
+            const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setPlayers(data);
         };
+        const fetchSponsorPhotos = async () => {
+            try {
+                const querySnapshot = await getDocs(collection(db, 'sponsorPhotos'));
+                const photos = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setSponsorPhotos(photos);
+            } catch (error) {
+                console.error('Error loading sponsor photos:', error);
+            }
+        };
         fetchPlayers();
+        fetchSponsorPhotos();
     }, []);
 
     const handleFileChange = (event) => {
@@ -39,6 +50,25 @@ const PlayerSoponser = () => {
     const handleFileChangeAd = (event) => {
         const file = event.target.files[0];
         if (file) setOverlayImageAd(URL.createObjectURL(file));
+    };
+
+    const handlePlayerSelect = (playerName) => {
+        setName(playerName);
+        // Find the player in the players array and load their photo
+        const selectedPlayer = players.find(p => p.label === playerName);
+        if (selectedPlayer) {
+            // Load player photo
+            if (selectedPlayer.photoData) {
+                setOverlayImage(selectedPlayer.photoData);
+            }
+            // Load sponsor photo if linked
+            if (selectedPlayer.sponsorPhotoId) {
+                const sponsorPhoto = sponsorPhotos.find(p => p.id === selectedPlayer.sponsorPhotoId);
+                if (sponsorPhoto) {
+                    setOverlayImageAd(sponsorPhoto.imageData);
+                }
+            }
+        }
     };
 
     const downloadFrameAsJpg = async () => {
@@ -107,7 +137,7 @@ const PlayerSoponser = () => {
                 />
 
                 <Box sx={{ mb: 1 }}>
-                    <AutoCompleteTextBox label="Player" options={players} value={name} onChange={(val) => setName(val)} />
+                    <AutoCompleteTextBox label="Player" options={players} value={name} onChange={handlePlayerSelect} />
                 </Box>
 
                 <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
