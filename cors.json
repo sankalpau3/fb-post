@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:3000", "https://rtcc-app.netlify.app"],
+    "method": ["GET", "HEAD", "DELETE", "PUT", "POST", "OPTIONS"],
+    "responseHeader": ["Content-Type", "x-goog-meta-uploaded-name"],
+    "maxAgeSeconds": 3600
+  }
+]

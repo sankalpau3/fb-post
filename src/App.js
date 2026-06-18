@@ -6,6 +6,7 @@ import PsAd from "./compositions/PsAd";
 import UpdatePlayer from "./compositions/UpdatePlayer";
 import Fines from "./compositions/Fines";
 import CreateMatch from "./compositions/CreateMatch";
+import PhotoManager from "./compositions/PhotoManager";
 import {
   addDoc,
   collection,
@@ -199,6 +200,7 @@ function App() {
     { key: "matches", label: "Matches" },
     { key: "psad", label: "PS Ad." },
     { key: "updatePlayer", label: "Update Players" },
+    { key: "photos", label: "Photo Manager" },
     { key: "fines", label: "Fines" },
   ];
 
@@ -208,6 +210,7 @@ function App() {
     matches: "Matches",
     psad: "PS Ad.",
     updatePlayer: "Update Players",
+    photos: "Photo Manager",
     fines: "Fines",
   };
 
@@ -223,6 +226,8 @@ function App() {
         return <PsAd />;
       case "updatePlayer":
         return <UpdatePlayer />;
+      case "photos":
+        return <PhotoManager />;
       case "fines":
         return <Fines currentAdminUsername={currentAdminUsername} />;
       default:

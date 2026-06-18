@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Alert, Button, Box, TextField, Stack, Typography, MenuItem, Radio } from '@mui/material';
+import { Alert, Button, Box, TextField, Stack, Typography, MenuItem, Radio, Card, CardMedia, Grid } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
 import mainSponsors from '../../CDN/static_content/imgages/mainSponsors.png';
@@ -10,6 +10,8 @@ import { db } from '../../firebase';
 
 const PlayerSoponser = () => {
     const [overlayImage, setOverlayImage] = useState(mainSponsors); // Default overlay image
+    const [selectedPhotoId, setSelectedPhotoId] = useState(null);
+    const [actionPhotos, setActionPhotos] = useState([]);
     const [team, setTeam] = useState("");
     const [oponent, setoPonents] = useState("");
     const [playerNames, setPlayerNames] = useState(Array(11).fill(""));
@@ -47,13 +49,25 @@ const PlayerSoponser = () => {
 
             const teamCardsSnapshot = await getDocs(collection(db, 'teamCards'));
             setTeamCards(teamCardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+            // Load action photos
+            const photosSnapshot = await getDocs(collection(db, 'actionPhotos'));
+            setActionPhotos(photosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         };
         fetchData();
     }, []);
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
-        if (file) setOverlayImage(URL.createObjectURL(file));
+        if (file) {
+            setOverlayImage(URL.createObjectURL(file));
+            setSelectedPhotoId(null); // Clear selected photo if uploading new one
+        }
+    };
+
+    const handleSelectPhoto = (photo) => {
+        setOverlayImage(photo.imageData); // Use base64 data
+        setSelectedPhotoId(photo.id);
     };
 
     const handleNameChange = (index, value) => {
@@ -80,6 +94,22 @@ const PlayerSoponser = () => {
             setPlayerNames(existing.playerNames || Array(11).fill(''));
             setCaptainIndex(existing.captainIndex ?? null);
             setWkIndex(existing.wkIndex ?? null);
+            
+            // Restore selected photo if available
+            if (existing.selectedPhotoId) {
+                const selectedPhoto = actionPhotos.find(p => p.id === existing.selectedPhotoId);
+                if (selectedPhoto) {
+                    setOverlayImage(selectedPhoto.imageData);
+                    setSelectedPhotoId(existing.selectedPhotoId);
+                } else {
+                    setOverlayImage(mainSponsors);
+                    setSelectedPhotoId(null);
+                }
+            } else {
+                setOverlayImage(mainSponsors);
+                setSelectedPhotoId(null);
+            }
+            
             setMessage({ type: 'info', text: 'Loaded existing team card for this match.' });
         } else {
             // clear form but keep selected match
@@ -87,6 +117,8 @@ const PlayerSoponser = () => {
             setPlayerNames(Array(11).fill(''));
             setCaptainIndex(null);
             setWkIndex(null);
+            setSelectedPhotoId(null);
+            setOverlayImage(mainSponsors);
             setMessage(null);
         }
     };
@@ -104,6 +136,8 @@ const PlayerSoponser = () => {
         setPlayerNames(Array(11).fill(''));
         setCaptainIndex(null);
         setWkIndex(null);
+        setSelectedPhotoId(null);
+        setOverlayImage(mainSponsors);
         setMessage(null);
     };
 
@@ -121,6 +155,7 @@ const PlayerSoponser = () => {
                 playerNames,
                 captainIndex,
                 wkIndex,
+                selectedPhotoId,
                 updatedAt: new Date().toISOString(),
             };
             if (teamCardEditingId) {
@@ -134,7 +169,6 @@ const PlayerSoponser = () => {
                 setMessage({ type: 'success', text: 'Team card saved successfully.' });
             }
             refreshTeamCards();
-            resetTeamCardForm();
         } catch (error) {
             console.error('Error saving team card', error);
             setMessage({ type: 'error', text: 'Unable to save team card. Try again.' });
@@ -155,6 +189,16 @@ const PlayerSoponser = () => {
         setPlayerNames(card.playerNames || Array(11).fill(''));
         setCaptainIndex(card.captainIndex ?? null);
         setWkIndex(card.wkIndex ?? null);
+        
+        // Restore selected photo if available
+        if (card.selectedPhotoId) {
+            const selectedPhoto = actionPhotos.find(p => p.id === card.selectedPhotoId);
+            if (selectedPhoto) {
+                setOverlayImage(selectedPhoto.imageData);
+                setSelectedPhotoId(card.selectedPhotoId);
+            }
+        }
+        
         setMessage(null);
     };
 
@@ -186,6 +230,17 @@ const PlayerSoponser = () => {
             link.href = image;
             link.download = `${team}_vs_${oponent}.png`;
             link.click();
+        }
+    };
+
+    const handleGenerateAndSaveGraphic = async () => {
+        try {
+            // First save the team card
+            await handleSaveTeamCard();
+            // Then download the graphic
+            await downloadFrameAsJpg();
+        } catch (error) {
+            console.error('Error generating graphic:', error);
         }
     };
 
@@ -240,6 +295,40 @@ const PlayerSoponser = () => {
                     <input type="file" hidden accept="image/*" onChange={handleFileChange} />
                 </Button>
 
+                {actionPhotos.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Select from Available Photos</Typography>
+                        <Grid container spacing={1}>
+                            {actionPhotos.map((photo) => (
+                                <Grid item xs={6} sm={4} key={photo.id}>
+                                    <Card
+                                        onClick={() => handleSelectPhoto(photo)}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            border: selectedPhotoId === photo.id ? '3px solid #1a237e' : '1px solid #ccc',
+                                            borderRadius: 1,
+                                            overflow: 'hidden',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                                boxShadow: 2,
+                                                borderColor: '#1a237e',
+                                            }
+                                        }}
+                                    >
+                                        <CardMedia
+                                            component="img"
+                                            height="80"
+                                            image={photo.imageData}
+                                            alt={photo.originalFileName}
+                                            sx={{ objectFit: 'cover' }}
+                                        />
+                                    </Card>
+                                </Grid>
+                            ))}
+                        </Grid>
+                    </Box>
+                )}
+
                 <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
                     <Button variant="contained" fullWidth onClick={handleSaveTeamCard}>
                         {teamCardEditingId ? 'Update Team Card' : 'Save Team Card'}
@@ -278,10 +367,6 @@ const PlayerSoponser = () => {
                         />
                     </Stack>
                 ))}
-
-                <Button variant="contained" fullWidth onClick={downloadFrameAsJpg} sx={{ mt: 2, py: 1.5, backgroundColor: '#1a237e' }}>
-                    Generate Graphic
-                </Button>
 
                 {/* saved team cards moved below the preview */}
             </Box>
@@ -385,38 +470,17 @@ const PlayerSoponser = () => {
                             );
                         })}
                     </Box>
-                        {/* Saved team cards list - placed under the graphic */}
-                        <Box sx={{ mt: 2, p: 1 }}>
-                            <Typography variant="h6" sx={{ mb: 1 }}>Saved Team Cards</Typography>
-                            {teamCards.length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">No saved team cards yet.</Typography>
-                            ) : (
-                                <Stack spacing={2}>
-                                    {teamCards.map((card) => {
-                                        const match = matches.find((matchItem) => matchItem.id === card.matchId);
-                                        return (
-                                            <Box key={card.id} sx={{ p: 2, border: '1px solid #ddd', borderRadius: 2 }}>
-                                                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                                                    {match ? `${new Date(match.date).toLocaleDateString()} vs ${match.opponent}` : 'Unlinked Match'}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Team: {card.team} • Players: {card.playerNames.filter(Boolean).length || '0'}
-                                                </Typography>
-                                                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                                                    <Button size="small" variant="outlined" onClick={() => handleEditTeamCard(card)}>
-                                                        Edit
-                                                    </Button>
-                                                    <Button size="small" variant="contained" color="error" onClick={() => handleDeleteTeamCard(card.id)}>
-                                                        Delete
-                                                    </Button>
-                                                </Stack>
-                                            </Box>
-                                        );
-                                    })}
-                                </Stack>
-                            )}
-                        </Box>
-                    </Box>
+                </Box>
+
+                {/* Generate Graphic Button - moved out of scrollable area and placed under the image */}
+                <Button 
+                    variant="contained" 
+                    fullWidth 
+                    onClick={handleGenerateAndSaveGraphic} 
+                    sx={{ mt: 2, py: 1.5, backgroundColor: '#1a237e' }}
+                >
+                    Generate Graphic
+                </Button>
             </Box>
         </Stack>
     );
