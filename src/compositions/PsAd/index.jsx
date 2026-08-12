@@ -1,15 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Box, TextField, Stack, Typography } from '@mui/material';
+import { Button, Box, Stack, Typography } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
 import sample from '../../CDN/static_content/imgages/sample_headshot.jpg';
 import sampleAd from '../../CDN/static_content/imgages/sample_ad.jpg';
 import html2canvas from 'html2canvas';
-import packageInfo from '../../../package.json';
 import AutoCompleteTextBox from "../../component/dropdown"
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
-import calcFontSize from "../../utils/calculateFontSize"
 
 const PlayerSoponser = () => {
     const [overlayImage, setOverlayImage] = useState(null);

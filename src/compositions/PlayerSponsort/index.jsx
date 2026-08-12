@@ -267,7 +267,7 @@ const PlayerSoponser = () => {
         setActivityType('Wickets');
         setScoreText(String(Number(wickets) || 0));
         setStats(buildBowlingStats(wickets, overs, maidens));
-    }, [performanceType, runs, ballsFaced, fours, sixes, wickets, overs, maidens]);
+    }, [performanceType, runs, ballsFaced, fours, sixes, wickets, overs, maidens, buildBattingStats, buildBowlingStats]);
 
     const generatedPrompt = useMemo(() => {
         const playerName = name || 'Player name';
