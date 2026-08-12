@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Button, Box, TextField, Stack, FormControlLabel, Switch, MenuItem } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
@@ -213,7 +213,7 @@ const PlayerSoponser = () => {
         return (oversNumber * 6) + ballsNumber;
     };
 
-    const buildBattingStats = (runsValue, ballsValue, foursValue, sixesValue) => {
+    const buildBattingStats = useCallback((runsValue, ballsValue, foursValue, sixesValue) => {
         const safeRuns = Number(runsValue) || 0;
         const safeBalls = Number(ballsValue) || 0;
         const safeFours = Number(foursValue) || 0;
@@ -231,9 +231,9 @@ const PlayerSoponser = () => {
         }
 
         return output;
-    };
+    }, []);
 
-    const buildBowlingStats = (wicketsValue, oversValue, maidensValue) => {
+    const buildBowlingStats = useCallback((wicketsValue, oversValue, maidensValue) => {
         const safeWickets = Number(wicketsValue) || 0;
         const safeMaidens = Number(maidensValue) || 0;
         const legalBalls = getLegalBallsFromOvers(oversValue);
@@ -254,7 +254,7 @@ const PlayerSoponser = () => {
         }
 
         return output;
-    };
+    }, []);
 
     useEffect(() => {
         if (performanceType === 'batting') {

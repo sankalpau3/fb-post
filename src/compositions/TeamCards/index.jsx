@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Alert, Button, Box, TextField, Stack, Typography, MenuItem, Radio, Card, CardMedia, Grid } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
 import mainSponsors from '../../CDN/static_content/imgages/mainSponsors.png';
 import html2canvas from 'html2canvas';
 import AutoCompleteTextBox from "../../component/dropdown"
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 const PlayerSoponser = () => {
@@ -104,18 +104,7 @@ const PlayerSoponser = () => {
         return matches.filter((match) => currentWeekIds.has(match.id));
     }, [matches, showAllMatches]);
 
-    useEffect(() => {
-        if (!matches.length || selectedMatchId) return;
-
-        const currentWeekMatches = getCurrentWeekMatchIds(matches);
-        const fallbackMatch = currentWeekMatches[0] || matches[0]?.id;
-        if (fallbackMatch) {
-            setSelectedMatchId(fallbackMatch);
-            handleMatchChange(fallbackMatch);
-        }
-    }, [matches, selectedMatchId, handleMatchChange]);
-
-    const handleMatchChange = (matchId) => {
+    const handleMatchChange = useCallback((matchId) => {
         setSelectedMatchId(matchId);
         const selectedMatch = matches.find((match) => match.id === matchId);
         if (selectedMatch) {
@@ -160,7 +149,18 @@ const PlayerSoponser = () => {
             setOverlayImage(mainSponsors);
             setMessage(null);
         }
-    };
+    }, [matches, teamCards, actionPhotos]);
+
+    useEffect(() => {
+        if (!matches.length || selectedMatchId) return;
+
+        const currentWeekMatches = getCurrentWeekMatchIds(matches);
+        const fallbackMatch = currentWeekMatches[0] || matches[0]?.id;
+        if (fallbackMatch) {
+            setSelectedMatchId(fallbackMatch);
+            handleMatchChange(fallbackMatch);
+        }
+    }, [matches, selectedMatchId, handleMatchChange]);
 
     const refreshTeamCards = async () => {
         const teamCardsSnapshot = await getDocs(collection(db, 'teamCards'));
@@ -211,47 +211,6 @@ const PlayerSoponser = () => {
         } catch (error) {
             console.error('Error saving team card', error);
             setMessage({ type: 'error', text: 'Unable to save team card. Try again.' });
-        }
-    };
-
-    const handleEditTeamCard = (card) => {
-        setTeamCardEditingId(card.id);
-        setSelectedMatchId(card.matchId || '');
-        const selectedMatch = matches.find((match) => match.id === card.matchId);
-        if (selectedMatch) {
-            setTeam(selectedMatch.team || '');
-            setoPonents(selectedMatch.opponent || '');
-        } else {
-            setTeam(card.team || '');
-            setoPonents(card.opponent || '');
-        }
-        setPlayerNames(card.playerNames || Array(11).fill(''));
-        setCaptainIndex(card.captainIndex ?? null);
-        setWkIndex(card.wkIndex ?? null);
-
-        // Restore selected photo if available
-        if (card.selectedPhotoId) {
-            const selectedPhoto = actionPhotos.find(p => p.id === card.selectedPhotoId);
-            if (selectedPhoto) {
-                setOverlayImage(selectedPhoto.imageData);
-                setSelectedPhotoId(card.selectedPhotoId);
-            }
-        }
-
-        setMessage(null);
-    };
-
-    const handleDeleteTeamCard = async (cardId) => {
-        try {
-            await deleteDoc(doc(db, 'teamCards', cardId));
-            setMessage({ type: 'success', text: 'Team card deleted.' });
-            if (teamCardEditingId === cardId) {
-                resetTeamCardForm();
-            }
-            refreshTeamCards();
-        } catch (error) {
-            console.error('Error deleting team card', error);
-            setMessage({ type: 'error', text: 'Unable to delete team card.' });
         }
     };
 
