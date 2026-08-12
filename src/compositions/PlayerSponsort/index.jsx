@@ -267,7 +267,7 @@ const PlayerSoponser = () => {
         setActivityType('Wickets');
         setScoreText(String(Number(wickets) || 0));
         setStats(buildBowlingStats(wickets, overs, maidens));
-    }, [performanceType, runs, ballsFaced, fours, sixes, wickets, overs, maidens]);
+    }, [performanceType, runs, ballsFaced, fours, sixes, wickets, overs, maidens, buildBattingStats, buildBowlingStats]);
 
     const generatedPrompt = useMemo(() => {
         const playerName = name || 'Player name';
@@ -284,44 +284,23 @@ const PlayerSoponser = () => {
         setIsGenerating(true);
 
         try {
-            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-
-            if (!apiKey) {
-                throw new Error('API key not configured. Add REACT_APP_GEMINI_API_KEY to your environment variables.');
-            }
-
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contents: [
-                            {
-                                parts: [
-                                    {
-                                        text: generatedPrompt,
-                                    },
-                                ],
-                            },
-                        ],
-                        generationConfig: {
-                            temperature: 0.8,
-                            maxOutputTokens: 2048,
-                        },
-                    }),
-                }
-            );
+            const response = await fetch('/.netlify/functions/generatePost', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prompt: generatedPrompt,
+                }),
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.error?.message || 'Failed to generate post.');
+                throw new Error(errorData?.error || 'Failed to generate post.');
             }
 
             const data = await response.json();
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            const text = data.text;
 
             if (!text) {
                 throw new Error('No post was returned by the AI.');

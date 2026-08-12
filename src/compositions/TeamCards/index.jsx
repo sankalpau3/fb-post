@@ -113,7 +113,7 @@ const PlayerSoponser = () => {
             setSelectedMatchId(fallbackMatch);
             handleMatchChange(fallbackMatch);
         }
-    }, [matches, selectedMatchId]);
+    }, [matches, selectedMatchId, handleMatchChange]);
 
     const handleMatchChange = (matchId) => {
         setSelectedMatchId(matchId);
