@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Alert, Button, Box, TextField, Stack, Typography, MenuItem, Radio, Card, CardMedia, Grid } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
@@ -115,7 +115,7 @@ const PlayerSoponser = () => {
         }
     }, [matches, selectedMatchId, handleMatchChange]);
 
-    const handleMatchChange = (matchId) => {
+    const handleMatchChange = useCallback((matchId) => {
         setSelectedMatchId(matchId);
         const selectedMatch = matches.find((match) => match.id === matchId);
         if (selectedMatch) {
@@ -160,7 +160,7 @@ const PlayerSoponser = () => {
             setOverlayImage(mainSponsors);
             setMessage(null);
         }
-    };
+    }, [matches, teamCards]);
 
     const refreshTeamCards = async () => {
         const teamCardsSnapshot = await getDocs(collection(db, 'teamCards'));
@@ -211,47 +211,6 @@ const PlayerSoponser = () => {
         } catch (error) {
             console.error('Error saving team card', error);
             setMessage({ type: 'error', text: 'Unable to save team card. Try again.' });
-        }
-    };
-
-    const handleEditTeamCard = (card) => {
-        setTeamCardEditingId(card.id);
-        setSelectedMatchId(card.matchId || '');
-        const selectedMatch = matches.find((match) => match.id === card.matchId);
-        if (selectedMatch) {
-            setTeam(selectedMatch.team || '');
-            setoPonents(selectedMatch.opponent || '');
-        } else {
-            setTeam(card.team || '');
-            setoPonents(card.opponent || '');
-        }
-        setPlayerNames(card.playerNames || Array(11).fill(''));
-        setCaptainIndex(card.captainIndex ?? null);
-        setWkIndex(card.wkIndex ?? null);
-
-        // Restore selected photo if available
-        if (card.selectedPhotoId) {
-            const selectedPhoto = actionPhotos.find(p => p.id === card.selectedPhotoId);
-            if (selectedPhoto) {
-                setOverlayImage(selectedPhoto.imageData);
-                setSelectedPhotoId(card.selectedPhotoId);
-            }
-        }
-
-        setMessage(null);
-    };
-
-    const handleDeleteTeamCard = async (cardId) => {
-        try {
-            await deleteDoc(doc(db, 'teamCards', cardId));
-            setMessage({ type: 'success', text: 'Team card deleted.' });
-            if (teamCardEditingId === cardId) {
-                resetTeamCardForm();
-            }
-            refreshTeamCards();
-        } catch (error) {
-            console.error('Error deleting team card', error);
-            setMessage({ type: 'error', text: 'Unable to delete team card.' });
         }
     };
 
