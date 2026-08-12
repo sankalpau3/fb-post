@@ -281,61 +281,35 @@ const PlayerSoponser = () => {
     }, [name, selectedMatch, team1, team2, performanceType, runs, ballsFaced, fours, sixes, wickets, overs, maidens, isCaptain, isWicketKeeper, specialNotes]);
 
     const generatePostFromAi = async () => {
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-
-        if (!apiKey) {
-            setGeneratedText('Missing API key: add REACT_APP_GEMINI_API_KEY to your .env file to generate the post.\n\nGet a free Gemini API key at: https://aistudio.google.com/app/apikey');
-            return;
-        }
-
         setIsGenerating(true);
 
         try {
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contents: [
-                            {
-                                parts: [
-                                    {
-                                        text: generatedPrompt,
-                                    },
-                                ],
-                            },
-                        ],
-                        generationConfig: {
-                            temperature: 0.8,
-                            maxOutputTokens: 2048,
-                        },
-                    }),
-                }
-            );
+            const response = await fetch('/.netlify/functions/generatePost', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prompt: generatedPrompt,
+                }),
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.error?.message || 'Failed to generate post.');
+                throw new Error(errorData?.error || 'Failed to generate post.');
             }
 
             const data = await response.json();
-            console.log('Full Gemini response:', data);
-            
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            console.log('Extracted text:', text);
-            console.log('Text length:', text?.length);
+            const text = data.text;
 
             if (!text) {
                 throw new Error('No post was returned by the AI.');
             }
 
-            console.log('Setting generated text with:', text);
+            console.log('Generated text:', text);
             setGeneratedText(text);
         } catch (error) {
-            console.error('Gemini generation failed:', error);
+            console.error('Post generation failed:', error);
             setGeneratedText(`Generation failed: ${error.message || 'Please try again.'}`);
         } finally {
             setIsGenerating(false);
