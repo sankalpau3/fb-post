@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Alert, Button, Box, TextField, Stack, Typography, MenuItem, Radio, Card, CardMedia, Grid } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import template from '../../CDN/static_content/imgages/template.png';
 import mainSponsors from '../../CDN/static_content/imgages/mainSponsors.png';
 import html2canvas from 'html2canvas';
 import AutoCompleteTextBox from "../../component/dropdown"
-import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 const PlayerSoponser = () => {
@@ -104,17 +104,6 @@ const PlayerSoponser = () => {
         return matches.filter((match) => currentWeekIds.has(match.id));
     }, [matches, showAllMatches]);
 
-    useEffect(() => {
-        if (!matches.length || selectedMatchId) return;
-
-        const currentWeekMatches = getCurrentWeekMatchIds(matches);
-        const fallbackMatch = currentWeekMatches[0] || matches[0]?.id;
-        if (fallbackMatch) {
-            setSelectedMatchId(fallbackMatch);
-            handleMatchChange(fallbackMatch);
-        }
-    }, [matches, selectedMatchId, handleMatchChange]);
-
     const handleMatchChange = useCallback((matchId) => {
         setSelectedMatchId(matchId);
         const selectedMatch = matches.find((match) => match.id === matchId);
@@ -160,7 +149,18 @@ const PlayerSoponser = () => {
             setOverlayImage(mainSponsors);
             setMessage(null);
         }
-    }, [matches, teamCards]);
+    }, [matches, teamCards, actionPhotos]);
+
+    useEffect(() => {
+        if (!matches.length || selectedMatchId) return;
+
+        const currentWeekMatches = getCurrentWeekMatchIds(matches);
+        const fallbackMatch = currentWeekMatches[0] || matches[0]?.id;
+        if (fallbackMatch) {
+            setSelectedMatchId(fallbackMatch);
+            handleMatchChange(fallbackMatch);
+        }
+    }, [matches, selectedMatchId, handleMatchChange]);
 
     const refreshTeamCards = async () => {
         const teamCardsSnapshot = await getDocs(collection(db, 'teamCards'));
