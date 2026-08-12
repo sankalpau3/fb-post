@@ -20,6 +20,7 @@ const PlayerSoponser = () => {
     const [matches, setMatches] = useState([]);
     const [teamCards, setTeamCards] = useState([]);
     const [selectedMatchId, setSelectedMatchId] = useState('');
+    const [showAllMatches, setShowAllMatches] = useState(false);
     const [teamCardEditingId, setTeamCardEditingId] = useState(null);
     const [message, setMessage] = useState(null);
 
@@ -76,6 +77,44 @@ const PlayerSoponser = () => {
         setPlayerNames(newNames);
     };
 
+    const getCurrentWeekMatchIds = (matchList = []) => {
+        const now = new Date();
+        const weekStart = new Date(now);
+        const currentDay = (now.getDay() + 6) % 7;
+        weekStart.setDate(now.getDate() - currentDay);
+        weekStart.setHours(0, 0, 0, 0);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+
+        return matchList
+            .filter((match) => {
+                if (!match.date) return false;
+                const matchDate = new Date(`${match.date}T00:00:00`);
+                return matchDate >= weekStart && matchDate <= weekEnd;
+            })
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .map((match) => match.id);
+    };
+
+    const visibleMatches = React.useMemo(() => {
+        if (showAllMatches) return [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const currentWeekIds = new Set(getCurrentWeekMatchIds(matches));
+        return matches.filter((match) => currentWeekIds.has(match.id));
+    }, [matches, showAllMatches]);
+
+    useEffect(() => {
+        if (!matches.length || selectedMatchId) return;
+
+        const currentWeekMatches = getCurrentWeekMatchIds(matches);
+        const fallbackMatch = currentWeekMatches[0] || matches[0]?.id;
+        if (fallbackMatch) {
+            setSelectedMatchId(fallbackMatch);
+            handleMatchChange(fallbackMatch);
+        }
+    }, [matches, selectedMatchId]);
+
     const handleMatchChange = (matchId) => {
         setSelectedMatchId(matchId);
         const selectedMatch = matches.find((match) => match.id === matchId);
@@ -94,7 +133,7 @@ const PlayerSoponser = () => {
             setPlayerNames(existing.playerNames || Array(11).fill(''));
             setCaptainIndex(existing.captainIndex ?? null);
             setWkIndex(existing.wkIndex ?? null);
-            
+
             // Restore selected photo if available
             if (existing.selectedPhotoId) {
                 const selectedPhoto = actionPhotos.find(p => p.id === existing.selectedPhotoId);
@@ -109,7 +148,7 @@ const PlayerSoponser = () => {
                 setOverlayImage(mainSponsors);
                 setSelectedPhotoId(null);
             }
-            
+
             setMessage({ type: 'info', text: 'Loaded existing team card for this match.' });
         } else {
             // clear form but keep selected match
@@ -189,7 +228,7 @@ const PlayerSoponser = () => {
         setPlayerNames(card.playerNames || Array(11).fill(''));
         setCaptainIndex(card.captainIndex ?? null);
         setWkIndex(card.wkIndex ?? null);
-        
+
         // Restore selected photo if available
         if (card.selectedPhotoId) {
             const selectedPhoto = actionPhotos.find(p => p.id === card.selectedPhotoId);
@@ -198,7 +237,7 @@ const PlayerSoponser = () => {
                 setSelectedPhotoId(card.selectedPhotoId);
             }
         }
-        
+
         setMessage(null);
     };
 
@@ -248,35 +287,71 @@ const PlayerSoponser = () => {
         <Stack
             direction={{ xs: 'column', md: 'row' }}
             spacing={2}
-            sx={{ p: { xs: 1, md: 2 }, alignItems: { xs: 'center', md: 'flex-start' }, width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}
+            sx={{
+                p: { xs: 1, md: 2 },
+                alignItems: { xs: 'stretch', md: 'flex-start' },
+                width: '100%',
+                maxWidth: '100vw',
+                overflowX: 'hidden',
+                background: '#edf2ee',
+            }}
         >
-            {/* 1. CONTROLS */}
-            <Box sx={{ width: { xs: '100%', md: '500px' }, p: 2, border: '1px solid #ccc', borderRadius: 2, boxSizing: 'border-box', maxHeight: '90vh', overflowY: 'auto' }}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Team Card Details</Typography>
+            <Box
+                sx={{
+                    width: { xs: '100%', md: '500px' },
+                    p: 2,
+                    border: '1px solid #d9e1dc',
+                    borderRadius: 0,
+                    boxSizing: 'border-box',
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    background: '#f7faf8',
+                    boxShadow: '0 6px 18px rgba(17, 48, 34, 0.03)',
+                }}
+            >
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#183027' }}>
+                    Team Card Details
+                </Typography>
 
                 {message && (
-                    <Alert severity={message.type} sx={{ mb: 2 }}>
+                    <Alert severity={message.type} sx={{ mb: 2, borderRadius: 0 }}>
                         {message.text}
                     </Alert>
                 )}
 
-                <TextField
-                    select
-                    fullWidth
-                    label="Select Match"
-                    value={selectedMatchId}
-                    onChange={(e) => handleMatchChange(e.target.value)}
-                    sx={{ mb: 2 }}
-                >
-                    <MenuItem value="">Select a match</MenuItem>
-                    {matches.map((match) => (
-                        <MenuItem key={match.id} value={match.id}>
-                            {new Date(match.date).toLocaleDateString()} vs {match.opponent}
-                        </MenuItem>
-                    ))}
-                </TextField>
+                <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <TextField
+                        select
+                        fullWidth
+                        label="View all matches"
+                        value={showAllMatches ? 'all' : 'week'}
+                        onChange={(e) => setShowAllMatches(e.target.value === 'all')}
+                        size="small"
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0, background: '#fff' } }}
+                    >
+                        <MenuItem value="week">Current week</MenuItem>
+                        <MenuItem value="all">All matches</MenuItem>
+                    </TextField>
 
-                <TextField fullWidth select label="Your Team" value={team} onChange={(e) => setTeam(e.target.value)} sx={{ mb: 2 }} disabled>
+                    <TextField
+                        select
+                        fullWidth
+                        label="Select Match"
+                        value={selectedMatchId}
+                        onChange={(e) => handleMatchChange(e.target.value)}
+                        size="small"
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0, background: '#fff' } }}
+                    >
+                        <MenuItem value="">Select a match</MenuItem>
+                        {visibleMatches.map((match) => (
+                            <MenuItem key={match.id} value={match.id}>
+                                {new Date(match.date).toLocaleDateString()} vs {match.opponent}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </Box>
+
+                <TextField fullWidth select label="Your Team" value={team} onChange={(e) => setTeam(e.target.value)} sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 0, background: '#fff' } }} disabled>
                     {teams.map((option) => (
                         <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
                     ))}
@@ -287,17 +362,30 @@ const PlayerSoponser = () => {
                     label="Opponent"
                     value={oponent}
                     disabled
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 0, background: '#fff' } }}
                 />
 
-                <Button component="label" variant="outlined" fullWidth startIcon={<CloudUploadIcon />} sx={{ mb: 3 }}>
+                <Button
+                    component="label"
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<CloudUploadIcon />}
+                    sx={{
+                        mb: 3,
+                        borderRadius: 0,
+                        background: '#ffffff',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        fontWeight: 700,
+                    }}
+                >
                     Upload Action Photo
                     <input type="file" hidden accept="image/*" onChange={handleFileChange} />
                 </Button>
 
                 {actionPhotos.length > 0 && (
                     <Box sx={{ mb: 3 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Select from Available Photos</Typography>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, color: '#213c31' }}>Select from Available Photos</Typography>
                         <Grid container spacing={1}>
                             {actionPhotos.map((photo) => (
                                 <Grid item xs={6} sm={4} key={photo.id}>
@@ -305,13 +393,14 @@ const PlayerSoponser = () => {
                                         onClick={() => handleSelectPhoto(photo)}
                                         sx={{
                                             cursor: 'pointer',
-                                            border: selectedPhotoId === photo.id ? '3px solid #1a237e' : '1px solid #ccc',
-                                            borderRadius: 1,
+                                            border: selectedPhotoId === photo.id ? '2px solid #1b6b43' : '1px solid #d8e0db',
+                                            borderRadius: 0,
                                             overflow: 'hidden',
                                             transition: 'all 0.2s',
+                                            boxShadow: 'none',
                                             '&:hover': {
-                                                boxShadow: 2,
-                                                borderColor: '#1a237e',
+                                                boxShadow: '0 8px 18px rgba(17, 48, 34, 0.08)',
+                                                borderColor: '#1b6b43',
                                             }
                                         }}
                                     >
@@ -330,17 +419,22 @@ const PlayerSoponser = () => {
                 )}
 
                 <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-                    <Button variant="contained" fullWidth onClick={handleSaveTeamCard}>
+                    <Button
+                        variant="contained"
+                        fullWidth
+                        onClick={handleSaveTeamCard}
+                        sx={{ borderRadius: 0, background: '#0f5d26', '&:hover': { background: '#0d4d21' } }}
+                    >
                         {teamCardEditingId ? 'Update Team Card' : 'Save Team Card'}
                     </Button>
-                    <Button variant="outlined" fullWidth onClick={resetTeamCardForm}>
+                    <Button variant="outlined" fullWidth onClick={resetTeamCardForm} sx={{ borderRadius: 0 }}>
                         Reset
                     </Button>
                 </Stack>
 
                 <Stack direction="row" justifyContent="space-between" sx={{ mb: 1, px: 1 }}>
-                    <Typography variant="subtitle2">Starting XI</Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>C | WK</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#213c31' }}>Starting XI</Typography>
+                    <Typography variant="caption" sx={{ color: '#5c6f66' }}>C | WK</Typography>
                 </Stack>
 
                 {playerNames.map((name, index) => (
@@ -370,10 +464,16 @@ const PlayerSoponser = () => {
 
                 {/* saved team cards moved below the preview */}
             </Box>
-            {/* Saved team cards list was moved inside the preview below the graphic */}
 
-            {/* 2. PREVIEW */}
-            <Box sx={{ width: { xs: '100%', md: 'auto' }, overflowX: 'auto', p: { xs: 1, md: 0 }, backgroundColor: '#e0e0e0', borderRadius: 2 }}>
+            <Box sx={{
+                width: { xs: '100%', md: 'auto' },
+                overflowX: 'auto',
+                p: { xs: 1, md: 0 },
+                background: '#dfe7e2',
+                border: '1px solid #d4ddd8',
+                borderRadius: 0,
+                boxShadow: '0 8px 22px rgba(17, 48, 34, 0.04)',
+            }}>
                 <Box
                     id="graphic-container"
                     ref={graphicRef}
@@ -438,7 +538,7 @@ const PlayerSoponser = () => {
 
                             return (
                                 <Box key={index} sx={{ mb: '10px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }} id="player-name-box">
-                                   
+
                                     <Typography sx={{
                                         fontSize: "1rem",
                                         lineHeight: 1,
@@ -452,7 +552,7 @@ const PlayerSoponser = () => {
                                     }}>
                                         {displayName}
                                     </Typography>
-                                     {sponsor && (
+                                    {sponsor && (
                                         <Typography sx={{
                                             fontSize: "0.7rem",
                                             lineHeight: 1,
@@ -473,10 +573,10 @@ const PlayerSoponser = () => {
                 </Box>
 
                 {/* Generate Graphic Button - moved out of scrollable area and placed under the image */}
-                <Button 
-                    variant="contained" 
-                    fullWidth 
-                    onClick={handleGenerateAndSaveGraphic} 
+                <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={handleGenerateAndSaveGraphic}
                     sx={{ mt: 2, py: 1.5, backgroundColor: '#1a237e' }}
                 >
                     Generate Graphic

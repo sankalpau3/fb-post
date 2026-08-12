@@ -9,6 +9,8 @@ import {
   Typography,
   Alert,
 } from '@mui/material';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import AutoCompleteTextBox from '../../component/dropdown';
 import {
   addDoc,
@@ -29,6 +31,7 @@ const CreateMatch = () => {
   const [selectedOpponent, setSelectedOpponent] = useState('');
   const [matchDate, setMatchDate] = useState(new Date().toISOString().slice(0, 10));
   const [message, setMessage] = useState(null);
+  const [showOtherMatches, setShowOtherMatches] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -122,6 +125,71 @@ const CreateMatch = () => {
     }
   };
 
+  const getStartOfWeek = (date) => {
+    const current = new Date(date);
+    const day = current.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    current.setHours(0, 0, 0, 0);
+    current.setDate(current.getDate() + diff);
+    return current;
+  };
+
+  const isInCurrentWeek = (matchDateValue) => {
+    if (!matchDateValue) return false;
+
+    const matchDateObj = new Date(`${matchDateValue}T00:00:00`);
+    if (Number.isNaN(matchDateObj.getTime())) return false;
+
+    const now = new Date();
+    const weekStart = getStartOfWeek(now);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    return matchDateObj >= weekStart && matchDateObj <= weekEnd;
+  };
+
+  const sortedMatches = [...matches].sort((a, b) => {
+    return new Date(a.date) - new Date(b.date);
+  });
+
+  const thisWeekMatches = sortedMatches.filter((match) => isInCurrentWeek(match.date));
+  const otherMatches = sortedMatches.filter((match) => !isInCurrentWeek(match.date));
+
+  const renderMatchRow = (match, isCompact = false) => (
+    <Paper
+      key={match.id}
+      sx={{
+        p: 2,
+        borderRadius: 0,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 2,
+        flexWrap: 'wrap',
+        border: '1px solid rgba(17, 48, 34, 0.08)',
+        background: isCompact ? '#fafcfb' : '#fff',
+      }}
+    >
+      <Box>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          {new Date(match.date).toLocaleDateString()} vs {match.opponent}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Team: {match.team}
+        </Typography>
+      </Box>
+      <Stack direction="row" spacing={1}>
+        <Button size="small" variant="outlined" onClick={() => handleEditMatch(match)}>
+          Edit
+        </Button>
+        <Button size="small" variant="contained" color="error" onClick={() => handleDeleteMatch(match.id)}>
+          Delete
+        </Button>
+      </Stack>
+    </Paper>
+  );
+
   return (
     <Box sx={{ width: '100%', maxWidth: 1000, mx: 'auto', py: 2 }}>
       <Typography variant="h4" sx={{ mb: 2, fontWeight: 700 }}>
@@ -179,34 +247,44 @@ const CreateMatch = () => {
           </Stack>
         </Paper>
 
-        <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 2 }}>
+        <Paper sx={{ p: 3, borderRadius: 0, boxShadow: 2 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            Existing Matches
+            Matches For the Week
           </Typography>
-          {matches.length === 0 ? (
+          {sortedMatches.length === 0 ? (
             <Typography>No matches created yet.</Typography>
           ) : (
             <Stack spacing={2}>
-              {matches.map((match) => (
-                <Paper key={match.id} sx={{ p: 2, borderRadius: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {new Date(match.date).toLocaleDateString()} vs {match.opponent}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Team: {match.team}
-                    </Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1}>
-                    <Button size="small" variant="outlined" onClick={() => handleEditMatch(match)}>
-                      Edit
-                    </Button>
-                    <Button size="small" variant="contained" color="error" onClick={() => handleDeleteMatch(match.id)}>
-                      Delete
-                    </Button>
-                  </Stack>
-                </Paper>
-              ))}
+              {thisWeekMatches.length > 0 ? (
+                thisWeekMatches.map((match) => renderMatchRow(match))
+              ) : (
+                <Typography>No matches in the current week.</Typography>
+              )}
+
+              {otherMatches.length > 0 && (
+                <>
+                  <Button
+                    variant="text"
+                    onClick={() => setShowOtherMatches((prev) => !prev)}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      color: '#153824',
+                      fontWeight: 700,
+                      textTransform: 'none',
+                      px: 0,
+                    }}
+                    endIcon={showOtherMatches ? <ExpandLessIcon /> : <ChevronRightIcon />}
+                  >
+                    {showOtherMatches ? 'Hide other matches' : `Show other matches (${otherMatches.length})`}
+                  </Button>
+
+                  {showOtherMatches && (
+                    <Stack spacing={2}>
+                      {otherMatches.map((match) => renderMatchRow(match, true))}
+                    </Stack>
+                  )}
+                </>
+              )}
             </Stack>
           )}
         </Paper>
