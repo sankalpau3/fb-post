@@ -7,15 +7,10 @@ import UpdatePlayer from "./compositions/UpdatePlayer";
 import Fines from "./compositions/Fines";
 import CreateMatch from "./compositions/CreateMatch";
 import PhotoManager from "./compositions/PhotoManager";
-import {
-  addDoc,
-  collection,
-  getDocs,
-} from "firebase/firestore";
+import { addDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import clubLogo from "./CDN/static_content/imgages/logo.jpg";
 import {
-  AppBar,
   Alert,
   Box,
   Button,
@@ -27,7 +22,6 @@ import {
   Paper,
   Stack,
   TextField,
-  Toolbar,
   Typography,
   useMediaQuery,
 } from "@mui/material";
@@ -37,7 +31,7 @@ import packageInfo from "../package.json";
 const defaultAdminUser = { username: 'admin', password: 'admin', role: 'Administrator' };
 
 function App() {
-  const [activeView, setActiveView] = useState("psad");
+  const [activeView, setActiveView] = useState("matches");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [currentAdminUsername, setCurrentAdminUsername] = useState('admin');
@@ -106,7 +100,7 @@ function App() {
     setIsAdminLoggedIn(false);
     localStorage.removeItem('adminLoggedIn');
     if (activeView === 'fines') {
-      setActiveView('psad');
+      setActiveView('matches');
     }
   };
 
@@ -235,83 +229,142 @@ function App() {
     }
   };
 
-  return (
-    <div
-      className="App"
-      style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
-    >
-      <AppBar position="sticky" color="default" elevation={1}>
-        <Toolbar sx={{ justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {viewLabels[activeView] || "Fine Management App"}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7 }}>
-              v{packageInfo.version}
-            </Typography>
+  const renderNavigationList = (onSelect) => (
+    <List sx={{ width: '100%', p: 1.5 }}>
+      {viewItems.map((item) => (
+        <ListItemButton
+          key={item.key}
+          selected={activeView === item.key}
+          onClick={() => {
+            setActiveView(item.key);
+            onSelect?.();
+          }}
+          sx={{
+            mb: 0.8,
+            border: '1px solid rgba(16, 88, 48, 0.12)',
+            background: activeView === item.key ? 'linear-gradient(135deg, #0f5d26 0%, #1c7d3f 100%)' : '#f5f8f6',
+            color: activeView === item.key ? '#ffffff' : '#153824',
+            borderRadius: 0,
+            fontWeight: 700,
+            '&:hover': {
+              background: activeView === item.key ? 'linear-gradient(135deg, #0f5d26 0%, #1c7d3f 100%)' : '#edf3ef',
+            },
+          }}
+        >
+          <ListItemText primary={item.label} sx={{ '& .MuiTypography-root': { fontWeight: 700 } }} />
+        </ListItemButton>
+      ))}
+      <ListItemButton
+        onClick={() => {
+          handleLogout();
+          onSelect?.();
+        }}
+        sx={{
+          mt: 1,
+          borderRadius: 0,
+          border: '1px solid rgba(17, 48, 34, 0.08)',
+          background: '#f1f5f2',
+          color: '#143826',
+          fontWeight: 700,
+        }}
+      >
+        <ListItemText primary="Log out" sx={{ '& .MuiTypography-root': { fontWeight: 700 } }} />
+      </ListItemButton>
+    </List>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="app-shell mobile-shell">
+        <header className="mobile-topbar">
+          <div className="mobile-brand">
+            <img src={clubLogo} alt="Club logo" className="sidebar-logo" />
+            <div>
+              <div className="sidebar-title">PS Ad.</div>
+              <div className="sidebar-subtitle">v{packageInfo.version}</div>
+            </div>
+          </div>
+
+          <IconButton
+            edge="end"
+            color="inherit"
+            aria-label="open navigation"
+            onClick={() => setDrawerOpen(true)}
+            sx={{ color: '#153824', borderRadius: 0 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        </header>
+
+        <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+          <Box sx={{ width: 260, background: '#f5f8f6', minHeight: '100%' }} role="presentation">
+            {renderNavigationList(() => setDrawerOpen(false))}
           </Box>
+        </Drawer>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {isMobile ? (
-              <IconButton
-                edge="end"
-                color="inherit"
-                aria-label="open navigation"
-                onClick={() => setDrawerOpen(true)}
-              >
-                <MenuIcon />
-              </IconButton>
-            ) : (
-              <Stack direction="row" spacing={1}>
-                {viewItems.map((item) => (
-                  <Button
-                    key={item.key}
-                    variant={activeView === item.key ? "contained" : "outlined"}
-                    color={activeView === item.key ? "primary" : "inherit"}
-                    onClick={() => setActiveView(item.key)}
-                  >
-                    {item.label}
-                  </Button>
-                ))}
-              </Stack>
-            )}
+        <main className="workspace-panel mobile-panel">
+          <header className="workspace-header mobile-header">
+            <div>
+              <p className="eyebrow">Dashboard</p>
+              <h1>{viewLabels[activeView] || 'Fine Management App'}</h1>
+            </div>
+          </header>
 
-            {isAdminLoggedIn && !isMobile && (
-              <Button variant="outlined" color="secondary" onClick={handleLogout}>
-                Log out
-              </Button>
-            )}
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 240 }} role="presentation">
-          <List>
-            {viewItems.map((item) => (
-              <ListItemButton
-                key={item.key}
-                selected={activeView === item.key}
-                onClick={() => {
-                  setActiveView(item.key);
-                  setDrawerOpen(false);
-                }}
-              >
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            ))}
-            {isAdminLoggedIn && isMobile && (
-              <ListItemButton onClick={() => { handleLogout(); setDrawerOpen(false); }}>
-                <ListItemText primary="Log out" />
-              </ListItemButton>
-            )}
-          </List>
-        </Box>
-      </Drawer>
-
-      <div className="content-area" style={{ flexGrow: 1, padding: "20px" }}>
-        {renderView()}
+          <div className="content-area">
+            {renderView()}
+          </div>
+        </main>
       </div>
+    );
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <img src={clubLogo} alt="Club logo" className="sidebar-logo" />
+          <div>
+            <div className="sidebar-title">PS Ad.</div>
+            <div className="sidebar-subtitle">v{packageInfo.version}</div>
+          </div>
+        </div>
+
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          {viewItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`nav-button ${activeView === item.key ? 'active' : ''}`}
+              onClick={() => setActiveView(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="user-chip">
+            <span className="user-dot" />
+            {currentAdminUsername}
+          </div>
+          <button type="button" className="logout-button" onClick={handleLogout}>
+            Log out
+          </button>
+        </div>
+      </aside>
+
+      <main className="workspace-panel">
+        <header className="workspace-header">
+          <div>
+            <p className="eyebrow">Dashboard</p>
+            <h1>{viewLabels[activeView] || 'Fine Management App'}</h1>
+          </div>
+        </header>
+
+        <div className="content-area">
+          {renderView()}
+        </div>
+      </main>
     </div>
   );
 }
