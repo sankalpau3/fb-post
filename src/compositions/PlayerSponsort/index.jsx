@@ -284,23 +284,44 @@ const PlayerSoponser = () => {
         setIsGenerating(true);
 
         try {
-            const response = await fetch('/.netlify/functions/generatePost', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    prompt: generatedPrompt,
-                }),
-            });
+            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+
+            if (!apiKey) {
+                throw new Error('API key not configured. Add REACT_APP_GEMINI_API_KEY to your environment variables.');
+            }
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [
+                                    {
+                                        text: generatedPrompt,
+                                    },
+                                ],
+                            },
+                        ],
+                        generationConfig: {
+                            temperature: 0.8,
+                            maxOutputTokens: 2048,
+                        },
+                    }),
+                }
+            );
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.error || 'Failed to generate post.');
+                throw new Error(errorData?.error?.message || 'Failed to generate post.');
             }
 
             const data = await response.json();
-            const text = data.text;
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
             if (!text) {
                 throw new Error('No post was returned by the AI.');
